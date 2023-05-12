@@ -138,11 +138,13 @@ def clip_global_norm(arrays, max_norm, check_isfinite=True):
             ctx = arr.device
             groups[ctx].append(arr)
         return groups
+
     def multi_sum_sq(*args, ctx=None):
         sum = _mx_np.array([0], device=ctx)
         for arg in args:
             sum += _mx_np.square(arg).sum().item()
         return sum
+
     arrays_groups = group_by_ctx(arrays)
     all_ctx_sum = _mx_np.array([0])
     ctx = arrays[0].device
@@ -151,19 +153,15 @@ def clip_global_norm(arrays, max_norm, check_isfinite=True):
         all_ctx_sum += sum_sq
     # global reduce
     total_norm = _mx_np.sqrt(all_ctx_sum)
-    if check_isfinite:
-        if not np.isfinite(total_norm.item()):
-            warnings.warn(
-                UserWarning('nan or inf is detected. '
-                            'Clipping results will be undefined.'), stacklevel=2)
+    if check_isfinite and not np.isfinite(total_norm.item()):
+        warnings.warn(
+            UserWarning('nan or inf is detected. '
+                        'Clipping results will be undefined.'), stacklevel=2)
     scale = max_norm / (total_norm + 1e-8)
     scale = _mx_np.min(_mx_np.concatenate([scale, _mx_np.ones(1, device=ctx)], axis=0))
     for arr in arrays:
         arr *= scale.item()
-    if check_isfinite:
-        return total_norm.item()
-    else:
-        return total_norm
+    return total_norm.item() if check_isfinite else total_norm
 
 
 def _indent(s_, numSpaces):
@@ -196,11 +194,11 @@ def check_sha1(filename, sha1_hash):
     sha1 = hashlib.sha1()
     with open(filename, 'rb') as f:
         while True:
-            data = f.read(1048576)
-            if not data:
-                break
-            sha1.update(data)
+            if data := f.read(1048576):
+                sha1.update(data)
 
+            else:
+                break
     return sha1.hexdigest() == sha1_hash
 
 
@@ -237,9 +235,7 @@ else:
 
     def _str_to_unicode(x):
         """Handle text decoding. Internal use only"""
-        if not isinstance(x, str):
-            return x.decode(sys.getfilesystemencoding())
-        return x
+        return x.decode(sys.getfilesystemencoding()) if not isinstance(x, str) else x
 
     def _handle_errors(rv, src):
         """Handle WinError. Internal use only"""
@@ -302,12 +298,10 @@ def download(url, path=None, overwrite=False, sha1_hash=None, retries=5, verify_
             'Please set the `path` option manually.'
     else:
         path = os.path.expanduser(path)
-        if os.path.isdir(path):
-            fname = os.path.join(path, url.split('/')[-1])
-        else:
-            fname = path
-    assert retries >= 0, "Number of retries should be at least 0, currently it's {}".format(
-        retries)
+        fname = os.path.join(path, url.split('/')[-1]) if os.path.isdir(path) else path
+    assert (
+        retries >= 0
+    ), f"Number of retries should be at least 0, currently it's {retries}"
 
     if not verify_ssl:
         warnings.warn(
@@ -318,17 +312,17 @@ def download(url, path=None, overwrite=False, sha1_hash=None, retries=5, verify_
         dirname = os.path.dirname(os.path.abspath(os.path.expanduser(fname)))
         if not os.path.exists(dirname):
             os.makedirs(dirname, exist_ok=True)
-        while retries + 1 > 0:
+        while retries > -1:
             # Disable pyling too broad Exception
             # pylint: disable=W0703
             try:
-                print('Downloading {} from {}...'.format(fname, url))
+                print(f'Downloading {fname} from {url}...')
                 r = requests.get(url, stream=True, verify=verify_ssl)
                 if r.status_code != 200:
-                    raise RuntimeError('Failed downloading url {}'.format(url))
+                    raise RuntimeError(f'Failed downloading url {url}')
                 # create uuid for temporary files
                 random_uuid = str(uuid.uuid4())
-                with open('{}.{}'.format(fname, random_uuid), 'wb') as f:
+                with open(f'{fname}.{random_uuid}', 'wb') as f:
                     for chunk in r.iter_content(chunk_size=1024):
                         if chunk: # filter out keep-alive new chunks
                             f.write(chunk)
@@ -337,29 +331,29 @@ def download(url, path=None, overwrite=False, sha1_hash=None, retries=5, verify_
                 # delete the temporary file
                 if not os.path.exists(fname) or (sha1_hash and not check_sha1(fname, sha1_hash)):
                     # atmoic operation in the same file system
-                    replace_file('{}.{}'.format(fname, random_uuid), fname)
+                    replace_file(f'{fname}.{random_uuid}', fname)
                 else:
                     try:
-                        os.remove('{}.{}'.format(fname, random_uuid))
+                        os.remove(f'{fname}.{random_uuid}')
                     except OSError:
                         pass
                     finally:
                         warnings.warn(
-                            'File {} exists in file system so the downloaded file is deleted'.format(fname))
+                            f'File {fname} exists in file system so the downloaded file is deleted'
+                        )
                 if sha1_hash and not check_sha1(fname, sha1_hash):
                     raise UserWarning(
-                        'File {} is downloaded but the content hash does not match.'
-                        ' The repo may be outdated or download may be incomplete. '
-                        'If the "repo_url" is overridden, consider switching to '
-                        'the default repo.'.format(fname))
+                        f'File {fname} is downloaded but the content hash does not match. The repo may be outdated or download may be incomplete. If the "repo_url" is overridden, consider switching to the default repo.'
+                    )
                 break
             except Exception as e:
                 retries -= 1
                 if retries <= 0:
                     raise e
 
-                print('download failed due to {}, retrying, {} attempt{} left'
-                      .format(repr(e), retries, 's' if retries > 1 else ''))
+                print(
+                    f"download failed due to {repr(e)}, retrying, {retries} attempt{'s' if retries > 1 else ''} left"
+                )
 
     return fname
 
@@ -368,7 +362,7 @@ def _get_repo_url():
     default_repo = 'https://apache-mxnet.s3-accelerate.dualstack.amazonaws.com/'
     repo_url = os.environ.get('MXNET_GLUON_REPO', default_repo)
     if repo_url[-1] != '/':
-        repo_url = repo_url+'/'
+        repo_url = f'{repo_url}/'
     return repo_url
 
 def _get_repo_file_url(namespace, filename):
@@ -389,8 +383,7 @@ def _brief_print_list(lst, limit=7):
     """Print at most `limit` elements of list."""
     lst = list(lst)
     if len(lst) > limit:
-        return _brief_print_list(lst[:limit//2], limit) + ', ..., ' + \
-            _brief_print_list(lst[-limit//2:], limit)
+        return f'{_brief_print_list(lst[:limit // 2], limit)}, ..., {_brief_print_list(lst[-limit // 2:], limit)}'
     return ', '.join([f"'{str(i)}'" for i in lst])
 
 
@@ -442,8 +435,9 @@ def shape_is_known(shape):
     for dim_size in shape:
         if dim_size == unknown_dim_size:
             return False
-        assert dim_size > unknown_dim_size, "shape dimension size cannot be less than {}, while " \
-                                            "received {}".format(unknown_dim_size, dim_size)
+        assert (
+            dim_size > unknown_dim_size
+        ), f"shape dimension size cannot be less than {unknown_dim_size}, while received {dim_size}"
     return True
 
 
@@ -479,9 +473,9 @@ def _check_all_np_ndarrays(out):
 
     # pylint: disable=no-else-raise
     if isinstance(out, (nd_ndarray, nd_symbol)) and not isinstance(out, (np_ndarray, np_symbol)):
-        raise TypeError("Block's output ndarrays/symbols must be of type `mxnet.numpy.ndarray`"
-                        " or `mxnet.symbol.numpy._Symbol`, while got output type {}"
-                        .format(str(type(out))))
+        raise TypeError(
+            f"Block's output ndarrays/symbols must be of type `mxnet.numpy.ndarray` or `mxnet.symbol.numpy._Symbol`, while got output type {str(type(out))}"
+        )
     elif isinstance(out, (list, tuple)):
         for i in out:
             _check_all_np_ndarrays(i)
@@ -496,9 +490,9 @@ def _check_block_input_np_ndarrays(inputs):
 
     # pylint: disable=no-else-raise
     if isinstance(inputs, (nd_ndarray, nd_symbol)) and not isinstance(inputs, (np_ndarray)):
-        raise TypeError("Block's inputs must be of type `mxnet.numpy.ndarray`, "
-                        "while got output type {}"
-                        .format(str(type(inputs))))
+        raise TypeError(
+            f"Block's inputs must be of type `mxnet.numpy.ndarray`, while got output type {str(type(inputs))}"
+        )
     elif isinstance(inputs, (list, tuple)):
         for i in inputs:
             _check_block_input_np_ndarrays(i)
@@ -544,12 +538,10 @@ def split_rnn_params(param, mode, num_layers, input_size, hidden_size, bidirecti
                         shape0 = gates * hidden_size
                         if p == 'weight':
                             cur_len = shape0 * ni
-                            param_dict['{}{}_{}_{}'.format(d, l, g, p)] = \
-                                param[begin:begin+cur_len].reshape(shape0, ni)
+                            param_dict[f'{d}{l}_{g}_{p}'] = param[begin:begin+cur_len].reshape(shape0, ni)
                         else:
                             cur_len = shape0
-                            param_dict['{}{}_{}_{}'.format(d, l, g, p)] = \
-                                param[begin:begin+cur_len].reshape(shape0,)
+                            param_dict[f'{d}{l}_{g}_{p}'] = param[begin:begin+cur_len].reshape(shape0,)
                         begin += cur_len
     else:
         for p in ['weight', 'bias']:
@@ -559,9 +551,9 @@ def split_rnn_params(param, mode, num_layers, input_size, hidden_size, bidirecti
                         if g != 'h2r' or p != 'bias':
                             if g == 'h2r':
                                 cur_len = projection_size * hidden_size
-                                param_dict['{}{}_{}_{}'.format(d, l, g, p)] = \
-                                    param[begin:begin+cur_len]. \
-                                        reshape(projection_size, hidden_size)
+                                param_dict[f'{d}{l}_{g}_{p}'] = param[
+                                    begin : begin + cur_len
+                                ].reshape(projection_size, hidden_size)
                             else:
                                 ni = input_size
                                 if l != 0:
@@ -571,8 +563,7 @@ def split_rnn_params(param, mode, num_layers, input_size, hidden_size, bidirecti
                                 shape0 = gates * hidden_size
                                 if p == 'weight':
                                     cur_len = shape0 * ni
-                                    param_dict['{}{}_{}_{}'.format(d, l, g, p)] = \
-                                        param[begin:begin+cur_len].reshape(shape0, ni)
+                                    param_dict[f'{d}{l}_{g}_{p}'] = param[begin:begin+cur_len].reshape(shape0, ni)
                                 else:
                                     cur_len = shape0
                                     param_dict['{}{}_{}_{}'.format(d, l, g, p)] = \

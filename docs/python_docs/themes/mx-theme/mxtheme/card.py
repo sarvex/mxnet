@@ -22,7 +22,7 @@ class CardDirective(Directive):
         # gives you access to the options of the directive
         options = self.options
 
-        cid = nodes.make_id("card-{}".format(options['title']))
+        cid = nodes.make_id(f"card-{options['title']}")
 
         classes = ['mx-card']
         if options.get('is_head', 'False').lower() == 'true':
@@ -30,8 +30,7 @@ class CardDirective(Directive):
         container = nodes.container(ids=[cid], classes=classes)
 
         container += nodes.inline('', options['title'], classes=['mx-card-title'])
-        link = options.get('link')
-        if link:
+        if link := options.get('link'):
             container += nodes.inline('', link, classes=['mx-card-link'])
 
         para = nodes.paragraph(classes=['mx-card-text'])

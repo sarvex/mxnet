@@ -349,9 +349,9 @@ class TestArtifactRepositoryTool(unittest.TestCase):
         """
         key_prefix = 'some/key/prefix'
         s3_keys = [
-            {'Key': '{}/file.txt'.format(key_prefix)},
-            {'Key': '{}/subdir/other.txt'.format(key_prefix)},
-            {'Key': '{}/another/sub/dir/f.txt'.format(key_prefix)}
+            {'Key': f'{key_prefix}/file.txt'},
+            {'Key': f'{key_prefix}/subdir/other.txt'},
+            {'Key': f'{key_prefix}/another/sub/dir/f.txt'},
         ]
 
         mock_s3.list_objects_v2.return_value = {
@@ -388,9 +388,9 @@ class TestArtifactRepositoryTool(unittest.TestCase):
         """
         key_prefix = 'some/key/prefix'
         s3_keys = [
-            {'Key': '{}/file.txt'.format(key_prefix)},
-            {'Key': '{}/subdir/other.txt'.format(key_prefix)},
-            {'Key': '{}/another/sub/dir/f.txt'.format(key_prefix)}
+            {'Key': f'{key_prefix}/file.txt'},
+            {'Key': f'{key_prefix}/subdir/other.txt'},
+            {'Key': f'{key_prefix}/another/sub/dir/f.txt'},
         ]
 
         mock_s3.list_objects_v2.return_value = {
@@ -470,7 +470,7 @@ class TestArtifactRepositoryTool(unittest.TestCase):
         mock_exists.return_value = False
         with self.assertRaises(FileNotFoundError) as ctx:
             is_file('some/path')
-        self.assertEqual(str(ctx.exception), 'File \'{}\' not found'.format('some/path'))
+        self.assertEqual(str(ctx.exception), f"File \'some/path\' not found")
 
     def test_sanitize_path_array_empty_paths(self):
         """

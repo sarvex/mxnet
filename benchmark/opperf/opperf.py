@@ -60,12 +60,16 @@ def run_all_mxnet_operator_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='n
     -------
     Dictionary of benchmark results.
     """
-    mxnet_operator_benchmark_results = []
-
-    # *************************MXNET TENSOR OPERATOR BENCHMARKS*****************************
-
-    # Run all Unary operations benchmarks with default input values
-    mxnet_operator_benchmark_results.append(run_mx_unary_operators_benchmarks(ctx=ctx, dtype=dtype, profiler=profiler, int64_tensor=int64_tensor, warmup=warmup, runs=runs))
+    mxnet_operator_benchmark_results = [
+        run_mx_unary_operators_benchmarks(
+            ctx=ctx,
+            dtype=dtype,
+            profiler=profiler,
+            int64_tensor=int64_tensor,
+            warmup=warmup,
+            runs=runs,
+        )
+    ]
 
     # Run all Binary Broadcast, element_wise, and miscellaneous operations benchmarks with default input values
     mxnet_operator_benchmark_results.append(run_mx_binary_broadcast_operators_benchmarks(ctx=ctx,
@@ -138,9 +142,7 @@ def run_all_mxnet_operator_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='n
         # Run all Linear Algebra operations benchmarks with default input values
         mxnet_operator_benchmark_results.append(run_linalg_operators_benchmarks(ctx=ctx, dtype=dtype, profiler=profiler, int64_tensor=int64_tensor, warmup=warmup, runs=runs))
 
-    # ****************************** PREPARE FINAL RESULTS ********************************
-    final_benchmark_result_map = merge_map_list(mxnet_operator_benchmark_results)
-    return final_benchmark_result_map
+    return merge_map_list(mxnet_operator_benchmark_results)
 
 
 def _parse_mxnet_context(ctx):
@@ -206,11 +208,9 @@ def main():
     runs = args.runs
     benchmark_results = run_all_mxnet_operator_benchmarks(ctx=ctx, dtype=dtype, profiler=profiler, int64_tensor=int64_tensor, warmup=warmup, runs=runs)
 
-    # Sort benchmark results alphabetically by op name
-    final_benchmark_results = dict()
-    for key in sorted(benchmark_results.keys()):
-        final_benchmark_results[key] = benchmark_results[key]
-
+    final_benchmark_results = {
+        key: benchmark_results[key] for key in sorted(benchmark_results.keys())
+    }
     # 3. PREPARE OUTPUTS
     run_time_features = get_current_runtime_features()
     save_to_file(final_benchmark_results, args.output_file, args.output_format, run_time_features, profiler)

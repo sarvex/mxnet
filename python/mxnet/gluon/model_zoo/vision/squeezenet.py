@@ -81,7 +81,6 @@ class SqueezeNet(HybridBlock):
             self.features.add(_make_fire(48, 192, 192))
             self.features.add(_make_fire(64, 256, 256))
             self.features.add(nn.MaxPool2D(pool_size=3, strides=2, ceil_mode=True))
-            self.features.add(_make_fire(64, 256, 256))
         else:
             self.features.add(nn.Conv2D(64, kernel_size=3, strides=2))
             self.features.add(nn.Activation('relu'))
@@ -95,7 +94,7 @@ class SqueezeNet(HybridBlock):
             self.features.add(_make_fire(48, 192, 192))
             self.features.add(_make_fire(48, 192, 192))
             self.features.add(_make_fire(64, 256, 256))
-            self.features.add(_make_fire(64, 256, 256))
+        self.features.add(_make_fire(64, 256, 256))
         self.features.add(nn.Dropout(0.5))
 
         self.output = nn.HybridSequential()

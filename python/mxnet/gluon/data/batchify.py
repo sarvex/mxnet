@@ -80,12 +80,11 @@ class Stack(object):
         _arr_cls = _arr.ndarray if is_np_array() else _arr.NDArray
         if isinstance(data[0], _arr_cls):
             dtype = data[0].dtype
-            if self._use_shared_mem:
-                out = _arr.empty((len(data),) + data[0].shape, dtype=dtype,
-                                 ctx=Device('cpu_shared', 0))
-                return _arr.stack(data, out=out) if is_np_array() else _arr.stack(*data, out=out)
-            else:
+            if not self._use_shared_mem:
                 return _arr.stack(data) if is_np_array() else _arr.stack(*data)
+            out = _arr.empty((len(data),) + data[0].shape, dtype=dtype,
+                             ctx=Device('cpu_shared', 0))
+            return _arr.stack(data, out=out) if is_np_array() else _arr.stack(*data, out=out)
         elif isinstance(data[0], (tuple, list)):
             data = zip(*data)
             return [self.__call__(i) for i in data]
@@ -244,10 +243,13 @@ class Pad(object):
                 'and before converting to an NDArray. '
                 'Alternatively you can consider inputting a numpy.ndarray.')
         if isinstance(data[0], (_arr_cls, np.ndarray, list)):
-            padded_arr = _pad_arrs_to_max_length(data, self._pad_val,
-                                                 self._use_shared_mem,
-                                                 self._dtype, self._round_to)
-            return padded_arr
+            return _pad_arrs_to_max_length(
+                data,
+                self._pad_val,
+                self._use_shared_mem,
+                self._dtype,
+                self._round_to,
+            )
         else:
             raise NotImplementedError(
                 "Pad() does not support multiple items, use Group(Pad(), Pad(), ...) instead")
@@ -260,15 +262,15 @@ def _append_arrs(arrs, use_shared_mem=False, expand=False, batch_axis=0):
     """Internal impl for returning appened arrays as list."""
     _arr = _np if is_np_array() else nd
     if isinstance(arrs[0], _arr.NDArray):
-        if use_shared_mem:
-            out = [x.as_in_context(Device('cpu_shared', 0)) for x in arrs]
-        else:
-            out = arrs
+        out = (
+            [x.as_in_context(Device('cpu_shared', 0)) for x in arrs]
+            if use_shared_mem
+            else arrs
+        )
+    elif use_shared_mem:
+        out = [_arr.array(x, ctx=Device('cpu_shared', 0)) for x in arrs]
     else:
-        if use_shared_mem:
-            out = [_arr.array(x, ctx=Device('cpu_shared', 0)) for x in arrs]
-        else:
-            out = [_arr.array(x) for x in arrs]
+        out = [_arr.array(x) for x in arrs]
 
     # add batch axis
     if expand:
@@ -347,15 +349,15 @@ class Group(object):
     def __init__(self, fn, *args):
         self._handle = None
         if isinstance(fn, (list, tuple)):
-            assert len(args) == 0, 'Input pattern not understood. The input of Group can be ' \
-                                   'Group(A, B, C) or Group([A, B, C]) or Group((A, B, C)). ' \
-                                   f'Received fn={str(fn)}, args={str(args)}'
+            assert (
+                not args
+            ), f'Input pattern not understood. The input of Group can be Group(A, B, C) or Group([A, B, C]) or Group((A, B, C)). Received fn={str(fn)}, args={args}'
             self._fn = fn
         else:
             self._fn = (fn, ) + args
         for i, ele_fn in enumerate(self._fn):
             assert hasattr(ele_fn, '__call__'), 'Batchify functions must be callable! ' \
-                                                f'type(fn[{i}]) = {str(type(ele_fn))}'
+                                                    f'type(fn[{i}]) = {str(type(ele_fn))}'
 
     def __call__(self, data):
         """Batchify the input data.
@@ -368,12 +370,10 @@ class Group(object):
         ret : tuple
             A tuple of length N. Contains the batchified result of each attribute in the input.
         """
-        assert len(data[0]) == len(self._fn),\
-            'The number of attributes in each data sample should contains' \
-            ' {} elements'.format(len(self._fn))
-        ret = []
-        for i, ele_fn in enumerate(self._fn):
-            ret.append(ele_fn([ele[i] for ele in data]))
+        assert len(data[0]) == len(
+            self._fn
+        ), f'The number of attributes in each data sample should contains {len(self._fn)} elements'
+        ret = [ele_fn([ele[i] for ele in data]) for i, ele_fn in enumerate(self._fn)]
         return tuple(ret)
 
     def __mx_handle__(self):

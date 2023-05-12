@@ -259,25 +259,29 @@ class SigmoidBinaryCrossEntropyLoss(Loss):
 
     def forward(self, pred, label, sample_weight=None, pos_weight=None):
         label = npx.reshape_like(label, pred)
-        if not self._from_sigmoid:
-            if pos_weight is None:
-                # We use the stable formula: max(x, 0) - x * z + log(1 + exp(-abs(x)))
-                loss = npx.relu(pred) - pred * label + \
-                    npx.activation(-np.abs(pred), act_type='softrelu')
-            else:
-                # We use the stable formula: x - x * z + (1 + z * pos_weight - z) * \
-                #    (log(1 + exp(-abs(x))) + max(-x, 0))
-                log_weight = 1 + np.multiply(pos_weight - 1, label)
-                loss = pred - pred * label + log_weight * \
-                       (npx.activation(-np.abs(pred), act_type='softrelu') + npx.relu(-pred))
-        else:
+        if self._from_sigmoid:
             eps = 1e-12
-            if pos_weight is None:
-                loss = -(np.log(pred + eps) * label
-                         + np.log(1. - pred + eps) * (1. - label))
-            else:
-                loss = -(np.multiply(np.log(pred + eps) * label, pos_weight)
-                         + np.log(1. - pred + eps) * (1. - label))
+            loss = (
+                -(
+                    np.log(pred + eps) * label
+                    + np.log(1.0 - pred + eps) * (1.0 - label)
+                )
+                if pos_weight is None
+                else -(
+                    np.multiply(np.log(pred + eps) * label, pos_weight)
+                    + np.log(1.0 - pred + eps) * (1.0 - label)
+                )
+            )
+        elif pos_weight is None:
+            # We use the stable formula: max(x, 0) - x * z + log(1 + exp(-abs(x)))
+            loss = npx.relu(pred) - pred * label + \
+                    npx.activation(-np.abs(pred), act_type='softrelu')
+        else:
+            # We use the stable formula: x - x * z + (1 + z * pos_weight - z) * \
+            #    (log(1 + exp(-abs(x))) + max(-x, 0))
+            log_weight = 1 + np.multiply(pos_weight - 1, label)
+            loss = pred - pred * label + log_weight * \
+                       (npx.activation(-np.abs(pred), act_type='softrelu') + npx.relu(-pred))
         loss = _apply_weighting(loss, self._weight, sample_weight)
         return _batch_mean(loss, self._batch_axis)
 
@@ -977,8 +981,9 @@ class SDMLLoss(Loss):
         """
 
         gold = np.eye(batch_size)
-        labels = gold * (1 - self.smoothing_parameter) + (1 - gold) * self.smoothing_parameter / (batch_size - 1)
-        return labels
+        return gold * (1 - self.smoothing_parameter) + (
+            1 - gold
+        ) * self.smoothing_parameter / (batch_size - 1)
 
     def forward(self, x1, x2):
         """

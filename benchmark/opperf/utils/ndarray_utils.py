@@ -44,7 +44,7 @@ def nd_forward_backward_and_profile(op, runs, **kwargs):
         with mx.autograd.record():
             args = []
             # need to create a new dictionary because can't update dict while iterating
-            kwargs_new = dict()
+            kwargs_new = {}
             for key in kwargs:
                 # separate positional args from key-worded args
                 if key.startswith("args"):
@@ -52,10 +52,7 @@ def nd_forward_backward_and_profile(op, runs, **kwargs):
                 else:
                     kwargs_new[key]=kwargs[key]
             # check for positional args
-            if len(args):
-                res = op(*args, **kwargs_new)
-            else:
-                res = op(**kwargs_new)
+            res = op(*args, **kwargs_new) if len(args) else op(**kwargs_new)
         res.backward()
         nd.waitall()
     return res
@@ -83,7 +80,7 @@ def nd_forward_and_profile(op, runs, **kwargs):
     for _ in range(runs):
         args = []
         # need to create a new dictionary because can't update dict while iterating
-        kwargs_new = dict()
+        kwargs_new = {}
         for key in kwargs:
             # separate positional args from key-worded args
             if key.startswith("args"):
@@ -91,10 +88,7 @@ def nd_forward_and_profile(op, runs, **kwargs):
             else:
                 kwargs_new[key]=kwargs[key]
         # check for positional args
-        if len(args):
-            res = op(*args, **kwargs_new)
-        else:
-            res = op(**kwargs_new)
+        res = op(*args, **kwargs_new) if len(args) else op(**kwargs_new)
         nd.waitall()
     return res
 
@@ -123,7 +117,7 @@ def get_mx_ndarray(ctx, in_tensor, dtype, initializer, attach_grad=True):
     -------
     MXNet NDArray Tensor.
     """
-    if isinstance(in_tensor, int) or isinstance(in_tensor, float):
+    if isinstance(in_tensor, (int, float)):
         return in_tensor
 
     if isinstance(in_tensor, tuple):

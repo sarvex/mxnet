@@ -54,8 +54,9 @@ def check_label_shapes(labels, preds, wrap=False, shape=False):
         label_shape, pred_shape = labels.shape, preds.shape
 
     if label_shape != pred_shape:
-        raise ValueError("Shape of labels {} does not match shape of "
-                         "predictions {}".format(label_shape, pred_shape))
+        raise ValueError(
+            f"Shape of labels {label_shape} does not match shape of predictions {pred_shape}"
+        )
 
     if wrap:
         if isinstance(labels, ndarray.ndarray.NDArray):
@@ -94,7 +95,7 @@ class EvalMetric(object):
         self.reset()
 
     def __str__(self):
-        return "EvalMetric: {}".format(dict(self.get_name_value()))
+        return f"EvalMetric: {dict(self.get_name_value())}"
 
     def get_config(self):
         """Save configurations of metric. Can be recreated
@@ -161,14 +162,13 @@ class EvalMetric(object):
         """
         if self.num_inst == 0:
             return (self.name, float('nan'))
-        else:
-            res = self.sum_metric / self.num_inst
-            if isinstance(res, numpy.ndarray) and len(res.shape) == 0:
-                # currently calling ' c = mxnet.numpy.array([1,2,3]).sum() ' would get
-                # ' array(6.) ', a ndarray with shape ()
-                # In this case, returning a 'float' in .get() is more explicit.
-                res = res.item()
-            return (self.name, res)
+        res = self.sum_metric / self.num_inst
+        if isinstance(res, numpy.ndarray) and len(res.shape) == 0:
+            # currently calling ' c = mxnet.numpy.array([1,2,3]).sum() ' would get
+            # ' array(6.) ', a ndarray with shape ()
+            # In this case, returning a 'float' in .get() is more explicit.
+            res = res.item()
+        return (self.name, res)
 
     def get_name_value(self):
         """Returns zipped name and value pairs.
@@ -295,8 +295,9 @@ class CompositeEvalMetric(EvalMetric):
         try:
             return self.metrics[index]
         except IndexError:
-            return ValueError("Metric index {} is out of range 0 and {}".format(
-                index, len(self.metrics)))
+            return ValueError(
+                f"Metric index {index} is out of range 0 and {len(self.metrics)}"
+            )
 
     def update_dict(self, labels, preds): # pylint: disable=arguments-differ
         if self.label_names is not None:
@@ -540,7 +541,7 @@ def predict_with_threshold(pred, threshold=0.5):
                 f"shape mismatch: {pred.shape[-1]} vs. {threshold.shape[-1]}"
         return pred > threshold
     else:
-        raise ValueError("{} is a wrong type for threshold!".format(type(threshold)))
+        raise ValueError(f"{type(threshold)} is a wrong type for threshold!")
 
 
 def one_hot(idx, num):
@@ -582,8 +583,9 @@ class _ClassificationMetrics(object):
             self.false_positives = numpy.zeros(num, dtype='float64').to_device(device)
             self.true_negatives = numpy.zeros(num, dtype='float64').to_device(device)
         else:
-            assert self.num_classes == num, \
-                "Input number of classes has changed from {} to {}".format(self.num_classes, num)
+            assert (
+                self.num_classes == num
+            ), f"Input number of classes has changed from {self.num_classes} to {num}"
 
     def update_stats(self, label, pred):
         """Update various binary classification counts for a single (label, pred) pair.
@@ -605,7 +607,9 @@ class _ClassificationMetrics(object):
             if pred.shape == label.shape:
                 pass
             elif pred.shape[-1] > 2:
-                raise ValueError("The shape of prediction {} is wrong for binary classification.".format(pred.shape))
+                raise ValueError(
+                    f"The shape of prediction {pred.shape} is wrong for binary classification."
+                )
             elif pred.shape[-1] == 2:
                 pred = pred.reshape(-1, 2)[:, 1]
             pred_label = predict_with_threshold(pred, self.threshold).reshape(-1)
@@ -622,12 +626,13 @@ class _ClassificationMetrics(object):
             num = pred.shape[-1]
             self._set(num, label.device)
             assert pred.shape == label.shape, \
-                "The shape of label should be same as that of prediction for multilabel classification."
+                    "The shape of label should be same as that of prediction for multilabel classification."
             pred_label = predict_with_threshold(pred, self.threshold).reshape(-1, num)
             label = label.reshape(-1, num)
         else:
             raise ValueError(
-                "Wrong class_type {}! Only supports ['binary', 'multiclass', 'multilabel']".format(self.class_type))
+                f"Wrong class_type {self.class_type}! Only supports ['binary', 'multiclass', 'multilabel']"
+            )
 
         check_label_shapes(label, pred_label)
 

@@ -195,8 +195,7 @@ def load_docker_cache(platform, tag, docker_registry) -> None:
 
 
 def log_environment():
-    instance_info = ec2_instance_info()
-    if instance_info:
+    if instance_info := ec2_instance_info():
         logging.info("EC2: %s", instance_info)
     pp = pprint.PrettyPrinter(indent=4)
     logging.debug("Build environment: %s", pp.pformat(dict(os.environ)))
@@ -310,7 +309,7 @@ def main() -> int:
                 local_ccache_dir=args.ccache_dir, dry_run=True, environment=environment)
         else:
             # With no commands, execute a build function for the target platform
-            command = ["/work/mxnet/ci/docker/runtime_functions.sh", "build_{}".format(platform)]
+            command = ["/work/mxnet/ci/docker/runtime_functions.sh", f"build_{platform}"]
             logging.info("No command specified, trying default build: %s", ' '.join(command))
             ret = container_run(
                 platform=platform, nvidia_runtime=args.nvidiadocker,

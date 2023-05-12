@@ -106,7 +106,7 @@ class HybridCompose(HybridSequential):
         super(HybridCompose, self).__init__()
         for i in transforms:
             if not isinstance(i, HybridBlock):
-                raise ValueError("{} is not a HybridBlock, try use `Compose` instead".format(i))
+                raise ValueError(f"{i} is not a HybridBlock, try use `Compose` instead")
             self.add(i)
         self.hybridize()
 

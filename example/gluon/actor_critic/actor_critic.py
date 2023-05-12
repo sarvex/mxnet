@@ -96,7 +96,7 @@ for epoch in count(1):
         rewards /= rewards.std() + onp.finfo(rewards.dtype).eps
 
         # compute loss and gradient
-        L = sum([loss(value, mx.np.array([r])) for r, value in zip(rewards, values)])
+        L = sum(loss(value, mx.np.array([r])) for r, value in zip(rewards, values))
         final_nodes = [L]
         for logp, r, v in zip(heads, rewards, values):
             reward = r - v.asnumpy()[0,0]
@@ -113,6 +113,7 @@ for epoch in count(1):
         print('Episode {}\tLast length: {:5d}\tAverage length: {:.2f}'.format(
             epoch, t, running_reward))
     if running_reward > 200:
-        print("Solved! Running reward is now {} and "
-              "the last episode runs to {} time steps!".format(running_reward, t))
+        print(
+            f"Solved! Running reward is now {running_reward} and the last episode runs to {t} time steps!"
+        )
         break

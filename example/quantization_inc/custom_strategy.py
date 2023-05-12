@@ -74,9 +74,10 @@ class MyCustomTuneStrategy(TuneStrategy):
         FALLBACK_DTYPE = 'fp32'
 
         # creating base configuration - all nodes are quantized and calibrated with minmax algorithm
-        best_cfg = {}
-        best_cfg['calib_iteration'] = int(self.calib_iter[0]) # number of batches for calibration
-        best_cfg['calib_sampling_size'] = int(self.calib_sampling_size[0]) # number of samples for calibration (multiplicity of batch)
+        best_cfg = {
+            'calib_iteration': int(self.calib_iter[0]),
+            'calib_sampling_size': int(self.calib_sampling_size[0]),
+        }
         nodes_cfg = OrderedDict()
         nodes_cfg_idx = {}
         for node_key, cfgs in self.opwise_tune_cfgs.items():
@@ -150,8 +151,7 @@ class MyCustomTuneStrategy(TuneStrategy):
         yield best_cfg
 
         # Choosing calibration algorithm (kl or minmax) for every node which was not excluded from quantization
-        for cfg in self.bayesian_configurations(best_cfg, nodes_cfg_idx):
-            yield cfg
+        yield from self.bayesian_configurations(best_cfg, nodes_cfg_idx)
 
     def bayesian_params_to_tune_configs(self, params):
         '''
@@ -168,14 +168,13 @@ class MyCustomTuneStrategy(TuneStrategy):
     def bayesian_configurations(self, cfg_base, params_base):
         from neural_compressor.strategy.bayesian import BayesianOptimization
 
-        # For each node we specify the possible range of values (we treat them as a configurations' index)
-        pbounds = {}
-        for node_key, configs in self.opwise_quant_cfgs.items():
-            if node_key in params_base and len(configs) > 1:
-                pbounds[node_key] = (0, len(configs))
-
+        pbounds = {
+            node_key: (0, len(configs))
+            for node_key, configs in self.opwise_quant_cfgs.items()
+            if node_key in params_base and len(configs) > 1
+        }
         cfg = copy.deepcopy(cfg_base)
-        if len(pbounds) == 0: # if there is nothing to be optimized, we finish
+        if not pbounds: # if there is nothing to be optimized, we finish
             cfg['op'].update(self.bayesian_params_to_tune_configs(params_base))
             return
 

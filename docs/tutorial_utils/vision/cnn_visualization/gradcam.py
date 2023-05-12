@@ -51,13 +51,13 @@ class ReluOp(mx.operator.CustomOp):
             y_ones = y.__gt__(0)
             # Mask out the values for which at least one of dy or y is negative
             dx = dy_positives * y_ones
-            self.assign(in_grad[0], req[0], dx)
         else:
             # Regular backward for ReLU
             x = in_data[0]
             x_gt_zero = x.__gt__(0)
             dx = out_grad[0] * x_gt_zero
-            self.assign(in_grad[0], req[0], dx)
+
+        self.assign(in_grad[0], req[0], dx)
 
 def set_guided_backprop(mode=True):
     ReluOp.guided_backprop = mode
@@ -70,7 +70,7 @@ class ReluProp(mx.operator.CustomOpProp):
     def infer_shape(self, in_shapes):
         data_shape = in_shapes[0]
         output_shape = data_shape
-        return (data_shape,), (output_shape,), ()
+        return (output_shape, ), (output_shape,), ()
 
     def create_operator(self, ctx, in_shapes, in_dtypes):
         return ReluOp()  
@@ -144,13 +144,13 @@ def _get_grad(net, image, class_id=None, conv_layer_name=None, image_grad=False)
         # Tell convviz.Conv2D which layer's output and gradient needs to be recorded
         Conv2D.capture_layer_name = conv_layer_name
         Activation.set_guided_backprop(False)
-    
+
     # Run the network
     with autograd.record(train_mode=False):
         out = net(image)
-    
+
     # If user didn't provide a class id, we'll use the class that the network predicted
-    if class_id == None:
+    if class_id is None:
         model_output = out.asnumpy()
         class_id = onp.argmax(model_output)
 
@@ -160,10 +160,9 @@ def _get_grad(net, image, class_id=None, conv_layer_name=None, image_grad=False)
 
     if image_grad:
         return image.grad[0].asnumpy()
-    else:
-        # Return the recorded convolution output and gradient
-        conv_out = Conv2D.conv_output
-        return conv_out[0].asnumpy(), conv_out.grad[0].asnumpy()
+    # Return the recorded convolution output and gradient
+    conv_out = Conv2D.conv_output
+    return conv_out[0].asnumpy(), conv_out.grad[0].asnumpy()
 
 def get_conv_out_grad(net, image, class_id=None, conv_layer_name=None):
     """Get the output and gradients of output of a convolutional layer.

@@ -63,7 +63,7 @@ class MXDataset(Dataset):
             idx += self._len
         # check bound
         if idx < 0 or idx >= self._len:
-            raise IndexError("Index {} out of bound: (0, {})".format(orig_idx, self._len))
+            raise IndexError(f"Index {orig_idx} out of bound: (0, {self._len})")
         create_ndarray_fn = _np_ndarray_cls if is_np_array() else _ndarray_cls
         output_vars = ctypes.POINTER(NDArrayHandle)()
         num_output = ctypes.c_int(0)
@@ -76,9 +76,7 @@ class MXDataset(Dataset):
         for i in range(num_output.value):
             if out[i].size == 1:
                 out[i] = out[i].asnumpy()
-        if len(out) > 1:
-            return tuple(out)
-        return out[0]
+        return tuple(out) if len(out) > 1 else out[0]
 
 
 class MXSampler(Sampler):
@@ -94,14 +92,14 @@ class MXSampler(Sampler):
         try:
             creator = getattr(_io, name)
         except AttributeError:
-            raise ValueError('{} is not a valid MXDataIter class'.format(name))
+            raise ValueError(f'{name} is not a valid MXDataIter class')
         self._iter = creator(**kwargs)
 
     def __len__(self):
         try:
             size = len(self._iter)
         except TypeError:
-            raise TypeError('Iterator {} does not provide length info'.format(self._iter))
+            raise TypeError(f'Iterator {self._iter} does not provide length info')
         return size
 
     def __iter__(self):
@@ -136,10 +134,9 @@ class MXBatchifyFunction(object):
 
     def __getstate__(self):
         """Override pickling behavior."""
-        # pickling pointer is not allowed
-        d = dict({'creator_name': self._kwargs['creator_name'],
-                  '_kwargs': self._kwargs})
-        return d
+        return dict(
+            {'creator_name': self._kwargs['creator_name'], '_kwargs': self._kwargs}
+        )
 
     def __setstate__(self, d):
         """Restore from pickled."""

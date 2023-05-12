@@ -43,10 +43,8 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disable training on GPU (default: False)')
 args = parser.parse_args()
 
-if not args.no_cuda:
-    # Disable CUDA if there are no GPUs.
-    if mx.device.num_gpus() == 0:
-        args.no_cuda = True
+if not args.no_cuda and mx.device.num_gpus() == 0:
+    args.no_cuda = True
 
 logging.basicConfig(level=logging.INFO)
 logging.info(args)
@@ -105,7 +103,7 @@ def conv_nets():
 def evaluate(model, data_iter, context):
     data_iter.reset()
     metric = mx.gluon.metric.Accuracy()
-    for _, batch in enumerate(data_iter):
+    for batch in data_iter:
         data = batch.data[0].as_in_context(context)
         label = batch.label[0].as_in_context(context)
         output = model(data.astype(args.dtype, copy=False))

@@ -60,7 +60,7 @@ def load(path, verbose=True):
         raise MXNetError(f"load path {path} is not an absolute path")
     #check if path is to a library file
     _, file_ext = os.path.splitext(path)
-    if not file_ext in ['.so', '.dll']:
+    if file_ext not in ['.so', '.dll']:
         raise MXNetError(f"load path {path} is NOT a library file")
 
     verbose_val = 1 if verbose else 0

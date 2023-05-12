@@ -118,16 +118,15 @@ def get_pretrained_file_names(embedding_name=None):
 
     text_embedding_reg = registry.get_registry(_TokenEmbedding)
 
-    if embedding_name is not None:
-        if embedding_name not in text_embedding_reg:
-            raise KeyError(f'Cannot find `embedding_name` {embedding_name}. Use '
-                           '`get_pretrained_file_names('
-                           'embedding_name=None).keys()` to get all the valid embedding '
-                           'names.')
-        return list(text_embedding_reg[embedding_name].pretrained_file_name_sha1.keys())
-    else:
+    if embedding_name is None:
         return {embedding_name: list(embedding_cls.pretrained_file_name_sha1.keys())
                 for embedding_name, embedding_cls in registry.get_registry(_TokenEmbedding).items()}
+    if embedding_name not in text_embedding_reg:
+        raise KeyError(f'Cannot find `embedding_name` {embedding_name}. Use '
+                       '`get_pretrained_file_names('
+                       'embedding_name=None).keys()` to get all the valid embedding '
+                       'names.')
+    return list(text_embedding_reg[embedding_name].pretrained_file_name_sha1.keys())
 
 
 class _TokenEmbedding(vocab.Vocabulary):
@@ -428,8 +427,12 @@ class _TokenEmbedding(vocab.Vocabulary):
         assert self.idx_to_vec is not None, 'The property `idx_to_vec` has not been properly set.'
 
         if not isinstance(tokens, list) or len(tokens) == 1:
-            assert isinstance(new_vectors, nd.NDArray) and len(new_vectors.shape) in [1, 2], \
-                '`new_vectors` must be a 1-D or 2-D NDArray if `tokens` is a singleton.'
+            assert isinstance(new_vectors, nd.NDArray) and len(
+                new_vectors.shape
+            ) in {
+                1,
+                2,
+            }, '`new_vectors` must be a 1-D or 2-D NDArray if `tokens` is a singleton.'
             if not isinstance(tokens, list):
                 tokens = [tokens]
             if len(new_vectors.shape) == 1:
@@ -438,10 +441,10 @@ class _TokenEmbedding(vocab.Vocabulary):
 
         else:
             assert isinstance(new_vectors, nd.NDArray) and len(new_vectors.shape) == 2, \
-                '`new_vectors` must be a 2-D NDArray if `tokens` is a list of multiple strings.'
+                    '`new_vectors` must be a 2-D NDArray if `tokens` is a list of multiple strings.'
         assert new_vectors.shape == (len(tokens), self.vec_len), \
-            'The length of new_vectors must be equal to the number of tokens and the width of' \
-            'new_vectors must be equal to the dimension of embeddings of the glossary.'
+                'The length of new_vectors must be equal to the number of tokens and the width of' \
+                'new_vectors must be equal to the dimension of embeddings of the glossary.'
 
         indices = []
         for token in tokens:

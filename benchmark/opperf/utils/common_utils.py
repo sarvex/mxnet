@@ -40,7 +40,7 @@ def merge_map_list(map_list):
 
     """
     # Preserve order of underlying maps and keys when converting to a single map
-    final_map = dict()
+    final_map = {}
 
     for current_map in map_list:
         for key in current_map:
@@ -142,17 +142,23 @@ def _prepare_markdown(results, runtime_features=None, profiler='native'):
 
     results_markdown.append("# Benchmark Results")
     if profiler == 'native':
-        results_markdown.append(
-            "| Operator | Inputs | Max Mem Usage (Storage) (Bytes) | Avg Forward Time (ms)"
-            " | Avg. Backward Time (ms) |")
-        results_markdown.append("| :---: | :---: | :---: | :---: | :---: |")
+        results_markdown.extend(
+            (
+                "| Operator | Inputs | Max Mem Usage (Storage) (Bytes) | Avg Forward Time (ms)"
+                " | Avg. Backward Time (ms) |",
+                "| :---: | :---: | :---: | :---: | :---: |",
+            )
+        )
     elif profiler == 'python':
-        results_markdown.append(
-            "| Operator | Avg Time (ms) | P50 Time (ms) | P90 Time (ms) | P99 Time (ms) | Inputs |")
-        results_markdown.append("| :---: | :---: | :---: | :---: | :---: | :---: |")
-
+        results_markdown.extend(
+            (
+                "| Operator | Avg Time (ms) | P50 Time (ms) | P90 Time (ms) | P99 Time (ms) | Inputs |",
+                "| :---: | :---: | :---: | :---: | :---: | :---: |",
+            )
+        )
     for op, op_bench_results in sorted(results.items(), key=itemgetter(0)):
-        for op_bench_result in op_bench_results:
-            results_markdown.append(_prepare_op_benchmark_result(op, op_bench_result, profiler))
-
+        results_markdown.extend(
+            _prepare_op_benchmark_result(op, op_bench_result, profiler)
+            for op_bench_result in op_bench_results
+        )
     return os.linesep.join(results_markdown)

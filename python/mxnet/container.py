@@ -111,10 +111,10 @@ class String(str, PyNativeObject):
         return val
 
     # pylint: disable=no-self-argument
-    def __from_mxnet_object__(cls, obj):
+    def __from_mxnet_object__(self, obj):
         """Construct from a given mxnet object."""
         content = _GetFFIString(obj)
-        val = str.__new__(cls, content)
+        val = str.__new__(self, content)
         val.__mxnet_object__ = obj
         return val
 

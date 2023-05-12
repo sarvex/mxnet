@@ -120,7 +120,6 @@ def run_gemm_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='nativ
         dtype=dtype, ctx=ctx,
         inputs=inputs_batch_dot,
         warmup=warmup, runs=runs, profiler=profiler)
-        # Operator khatri_rao is not yet implemented for GPU
     khatri_rao_benchmark_res = []
     if ctx != mx.gpu():
         # Benchmark tests for khatri_rao operator
@@ -130,6 +129,6 @@ def run_gemm_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='nativ
             inputs=inputs_khatri_rao,
             warmup=warmup, runs=runs, profiler=profiler)
 
-    # Prepare combined results for GEMM operators
-    mx_gemm_op_results = merge_map_list(dot_benchmark_res + batch_dot_benchmark_res + khatri_rao_benchmark_res)
-    return mx_gemm_op_results
+    return merge_map_list(
+        dot_benchmark_res + batch_dot_benchmark_res + khatri_rao_benchmark_res
+    )

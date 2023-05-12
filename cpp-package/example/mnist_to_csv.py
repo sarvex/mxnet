@@ -24,24 +24,22 @@
 import argparse
 
 def convert_to_csv(args):
-    imageFile = open(args.imageFile, "rb")
-    labelFile = open(args.labelFile, "rb")
-    outputFile = open(args.outputFile, "w")
+    with open(args.imageFile, "rb") as imageFile:
+        labelFile = open(args.labelFile, "rb")
+        outputFile = open(args.outputFile, "w")
 
-    imageFile.read(16)
-    labelFile.read(8)
-    images = []
+        imageFile.read(16)
+        labelFile.read(8)
+        images = []
 
-    for i in range(args.num_records):
-        image = [ord(labelFile.read(1))]
-        for j in range(28 * 28):
-            image.append(ord(imageFile.read(1)))
-        images.append(image)
+        for _ in range(args.num_records):
+            image = [ord(labelFile.read(1))]
+            image.extend(ord(imageFile.read(1)) for _ in range(28 * 28))
+            images.append(image)
 
-    for image in images:
-        outputFile.write(",".join(str(pix) for pix in image) + "\n")
+        for image in images:
+            outputFile.write(",".join(str(pix) for pix in image) + "\n")
 
-    imageFile.close()
     outputFile.close()
     labelFile.close()
 
@@ -56,4 +54,4 @@ if __name__ == '__main__':
     try:
         convert_to_csv(args)
     except Exception as e:
-        print("Error : Exception {}".format(str(e)))
+        print(f"Error : Exception {str(e)}")

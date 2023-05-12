@@ -117,7 +117,7 @@ class MXRecordIO(object):
         """Check process id to ensure integrity, reset if in new process."""
         # pylint: disable=not-callable
         # It's bug from pylint(astroid). See https://github.com/PyCQA/pylint/issues/1699
-        if not self.pid == current_process().pid:
+        if self.pid != current_process().pid:
             if allow_reset:
                 self.reset()
             else:

@@ -24,8 +24,12 @@ import random
 import numpy as np
 
 def _check_bbox_shape(bbox):
-    assert len(bbox.shape) == 2, "bbox requires shape of (N, 4+), given: {}".format(bbox.shape)
-    assert bbox.shape[1] >= 4, "bbox requires shape of (N, 4+), given: {}".format(bbox.shape)
+    assert (
+        len(bbox.shape) == 2
+    ), f"bbox requires shape of (N, 4+), given: {bbox.shape}"
+    assert (
+        bbox.shape[1] >= 4
+    ), f"bbox requires shape of (N, 4+), given: {bbox.shape}"
 
 def bbox_crop(bbox, crop_box=None, allow_outside_center=True):
     """Crop bounding boxes according to slice area.
@@ -52,10 +56,11 @@ def bbox_crop(bbox, crop_box=None, allow_outside_center=True):
     bbox = bbox.copy()
     if crop_box is None:
         return bbox
-    if not len(crop_box) == 4:
+    if len(crop_box) != 4:
         raise ValueError(
-            "Invalid crop_box parameter, requires length 4, given {}".format(str(crop_box)))
-    if sum([int(c is None) for c in crop_box]) == 4:
+            f"Invalid crop_box parameter, requires length 4, given {str(crop_box)}"
+        )
+    if sum(int(c is None) for c in crop_box) == 4:
         return bbox
 
     l, t, w, h = crop_box
@@ -105,8 +110,8 @@ def bbox_flip(bbox, size, flip_x=False, flip_y=False):
     numpy.ndarray
         Flipped bounding boxes with original shape.
     """
-    if not len(size) == 2:
-        raise ValueError("size requires length 2 tuple, given {}".format(len(size)))
+    if len(size) != 2:
+        raise ValueError(f"size requires length 2 tuple, given {len(size)}")
     width, height = size
     bbox = bbox.copy()
     if flip_y:
@@ -142,10 +147,10 @@ def bbox_resize(bbox, in_size, out_size):
     numpy.ndarray
         Resized bounding boxes with original shape.
     """
-    if not len(in_size) == 2:
-        raise ValueError("in_size requires length 2 tuple, given {}".format(len(in_size)))
-    if not len(out_size) == 2:
-        raise ValueError("out_size requires length 2 tuple, given {}".format(len(out_size)))
+    if len(in_size) != 2:
+        raise ValueError(f"in_size requires length 2 tuple, given {len(in_size)}")
+    if len(out_size) != 2:
+        raise ValueError(f"out_size requires length 2 tuple, given {len(out_size)}")
 
     bbox = bbox.copy().astype(float)
     x_scale = out_size[0] / in_size[0]
@@ -233,20 +238,20 @@ def bbox_xywh_to_xyxy(xywh):
 
     """
     if isinstance(xywh, (tuple, list)):
-        if not len(xywh) == 4:
-            raise IndexError(
-                "Bounding boxes must have 4 elements, given {}".format(len(xywh)))
+        if len(xywh) != 4:
+            raise IndexError(f"Bounding boxes must have 4 elements, given {len(xywh)}")
         w, h = np.maximum(xywh[2] - 1, 0), np.maximum(xywh[3] - 1, 0)
         return xywh[0], xywh[1], xywh[0] + w, xywh[1] + h
     elif isinstance(xywh, np.ndarray):
-        if not xywh.size % 4 == 0:
+        if xywh.size % 4 != 0:
             raise IndexError(
-                "Bounding boxes must have n * 4 elements, given {}".format(xywh.shape))
-        xyxy = np.hstack((xywh[:, :2], xywh[:, :2] + np.maximum(0, xywh[:, 2:4] - 1)))
-        return xyxy
+                f"Bounding boxes must have n * 4 elements, given {xywh.shape}"
+            )
+        return np.hstack((xywh[:, :2], xywh[:, :2] + np.maximum(0, xywh[:, 2:4] - 1)))
     else:
         raise TypeError(
-            'Expect input xywh a list, tuple or numpy.ndarray, given {}'.format(type(xywh)))
+            f'Expect input xywh a list, tuple or numpy.ndarray, given {type(xywh)}'
+        )
 
 
 def bbox_xyxy_to_xywh(xyxy):
@@ -267,20 +272,21 @@ def bbox_xyxy_to_xywh(xyxy):
 
     """
     if isinstance(xyxy, (tuple, list)):
-        if not len(xyxy) == 4:
-            raise IndexError(
-                "Bounding boxes must have 4 elements, given {}".format(len(xyxy)))
+        if len(xyxy) != 4:
+            raise IndexError(f"Bounding boxes must have 4 elements, given {len(xyxy)}")
         x1, y1 = xyxy[0], xyxy[1]
         w, h = xyxy[2] - x1 + 1, xyxy[3] - y1 + 1
         return x1, y1, w, h
     elif isinstance(xyxy, np.ndarray):
-        if not xyxy.size % 4 == 0:
+        if xyxy.size % 4 != 0:
             raise IndexError(
-                "Bounding boxes must have n * 4 elements, given {}".format(xyxy.shape))
+                f"Bounding boxes must have n * 4 elements, given {xyxy.shape}"
+            )
         return np.hstack((xyxy[:, :2], xyxy[:, 2:4] - xyxy[:, :2] + 1))
     else:
         raise TypeError(
-            'Expect input xywh a list, tuple or numpy.ndarray, given {}'.format(type(xyxy)))
+            f'Expect input xywh a list, tuple or numpy.ndarray, given {type(xyxy)}'
+        )
 
 
 def bbox_clip_xyxy(xyxy, width, height):
@@ -306,18 +312,18 @@ def bbox_clip_xyxy(xyxy, width, height):
 
     """
     if isinstance(xyxy, (tuple, list)):
-        if not len(xyxy) == 4:
-            raise IndexError(
-                "Bounding boxes must have 4 elements, given {}".format(len(xyxy)))
+        if len(xyxy) != 4:
+            raise IndexError(f"Bounding boxes must have 4 elements, given {len(xyxy)}")
         x1 = np.minimum(width - 1, np.maximum(0, xyxy[0]))
         y1 = np.minimum(height - 1, np.maximum(0, xyxy[1]))
         x2 = np.minimum(width - 1, np.maximum(0, xyxy[2]))
         y2 = np.minimum(height - 1, np.maximum(0, xyxy[3]))
         return x1, y1, x2, y2
     elif isinstance(xyxy, np.ndarray):
-        if not xyxy.size % 4 == 0:
+        if xyxy.size % 4 != 0:
             raise IndexError(
-                "Bounding boxes must have n * 4 elements, given {}".format(xyxy.shape))
+                f"Bounding boxes must have n * 4 elements, given {xyxy.shape}"
+            )
         x1 = np.minimum(width - 1, np.maximum(0, xyxy[:, 0]))
         y1 = np.minimum(height - 1, np.maximum(0, xyxy[:, 1]))
         x2 = np.minimum(width - 1, np.maximum(0, xyxy[:, 2]))
@@ -325,7 +331,8 @@ def bbox_clip_xyxy(xyxy, width, height):
         return np.hstack((x1, y1, x2, y2))
     else:
         raise TypeError(
-            'Expect input xywh a list, tuple or numpy.ndarray, given {}'.format(type(xyxy)))
+            f'Expect input xywh a list, tuple or numpy.ndarray, given {type(xyxy)}'
+        )
 
 def bbox_random_crop_with_constraints(bbox, size, min_scale=0.3, max_scale=1,
                                       max_aspect_ratio=2, constraints=None,
@@ -396,8 +403,9 @@ def bbox_random_crop_with_constraints(bbox, size, min_scale=0.3, max_scale=1,
         for _ in range(max_trial):
             scale = random.uniform(min_scale, max_scale)
             aspect_ratio = random.uniform(
-                max(1 / max_aspect_ratio, scale * scale),
-                min(max_aspect_ratio, 1 / (scale * scale)))
+                max(1 / max_aspect_ratio, scale**2),
+                min(max_aspect_ratio, 1 / scale**2),
+            )
             crop_h = int(h * scale / np.sqrt(aspect_ratio))
             crop_w = int(w * scale * np.sqrt(aspect_ratio))
 

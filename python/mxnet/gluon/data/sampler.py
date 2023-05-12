@@ -187,16 +187,16 @@ class IntervalSampler(Sampler):
     [0, 3, 6, 9, 12]
     """
     def __init__(self, length, interval, rollover=True):
-        assert interval <= length, \
-            "Interval {} must be smaller than or equal to length {}".format(interval, length)
+        assert (
+            interval <= length
+        ), f"Interval {interval} must be smaller than or equal to length {length}"
         self._length = length
         self._interval = interval
         self._rollover = rollover
 
     def __iter__(self):
         for i in range(self._interval if self._rollover else 1):
-            for j in range(i, self._length, self._interval):
-                yield j
+            yield from range(i, self._length, self._interval)
 
     def __len__(self):
         return self._length

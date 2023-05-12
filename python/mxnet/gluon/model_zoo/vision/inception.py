@@ -44,10 +44,11 @@ def _make_branch(use_pool, *conv_settings):
         out.add(nn.MaxPool2D(pool_size=3, strides=2))
     setting_names = ['channels', 'kernel_size', 'strides', 'padding']
     for setting in conv_settings:
-        kwargs = {}
-        for i, value in enumerate(setting):
-            if value is not None:
-                kwargs[setting_names[i]] = value
+        kwargs = {
+            setting_names[i]: value
+            for i, value in enumerate(setting)
+            if value is not None
+        }
         out.add(_make_basic_conv(**kwargs))
     return out
 

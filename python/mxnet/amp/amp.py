@@ -67,8 +67,7 @@ def _cast_symbol_NDArray(s, dtype, is_numpy_module=False):
 
 def _get_nd_fun_to_wrap(name, module, submodule_dict):
     module_internal = getattr(module, "_internal")
-    prefix = base._get_op_name_prefix(name)
-    if prefix:
+    if prefix := base._get_op_name_prefix(name):
         if prefix != '_random_' or name.endswith('_like'):
             func_name = name[len(prefix):]
             cur_module = submodule_dict[prefix]
@@ -98,9 +97,12 @@ def _get_np_fun_to_wrap(name, ns_prefix):
                 break
     else:
         assert False, f'Unable to find target module for {name} in {ns_prefix}'
-    if name.startswith(_NP_INTERNAL_OP_PREFIX) and ns_prefix == 'mxnet.ndarray':
-        if hasattr(ndarray.numpy._api_internal, func):
-            modules.append(ndarray.numpy._api_internal)
+    if (
+        name.startswith(_NP_INTERNAL_OP_PREFIX)
+        and ns_prefix == 'mxnet.ndarray'
+        and hasattr(ndarray.numpy._api_internal, func)
+    ):
+        modules.append(ndarray.numpy._api_internal)
     return func, modules
 
 def _wrap_module_functions(module, is_numpy_module, target_dtype, get_aliases, get_cond_aliases,
@@ -112,10 +114,11 @@ def _wrap_module_functions(module, is_numpy_module, target_dtype, get_aliases, g
 
     def _ndarray_wrapper(f, target_dtype, fp32_param=None, cond_arg=None):
         def _new_fun(*args, **kwargs):
-            if cond_arg is not None:
-                if (cond_arg[0] not in kwargs or
-                        kwargs[cond_arg[0]] not in cond_arg[1]):
-                    return f(*args, **kwargs)
+            if cond_arg is not None and (
+                cond_arg[0] not in kwargs
+                or kwargs[cond_arg[0]] not in cond_arg[1]
+            ):
+                return f(*args, **kwargs)
             if fp32_param:
                 new_args = []
                 for i, x in enumerate(args):
@@ -139,6 +142,7 @@ def _wrap_module_functions(module, is_numpy_module, target_dtype, get_aliases, g
                 kwargs = {k: _cast_symbol_NDArray(v, target_dtype, is_numpy_module)
                           for k, v in kwargs.items()}
             return f(*args, **kwargs)
+
         _new_fun.__name__ = f.__name__
         _new_fun.__module__ = f.__module__
         _new_fun.__doc__ = f.__doc__
@@ -146,10 +150,11 @@ def _wrap_module_functions(module, is_numpy_module, target_dtype, get_aliases, g
 
     def _symbol_wrapper(f, target_dtype, fp32_param=None, cond_arg=None):
         def _new_fun(*args, **kwargs):
-            if cond_arg is not None:
-                if (cond_arg[0] not in kwargs or
-                        kwargs[cond_arg[0]] not in cond_arg[1]):
-                    return f(*args, **kwargs)
+            if cond_arg is not None and (
+                cond_arg[0] not in kwargs
+                or kwargs[cond_arg[0]] not in cond_arg[1]
+            ):
+                return f(*args, **kwargs)
             sym = f(*args, **kwargs)
             inputs = sym.get_children()
             aux = sym.list_auxiliary_states()
@@ -168,6 +173,7 @@ def _wrap_module_functions(module, is_numpy_module, target_dtype, get_aliases, g
             wrapped_sym = atomic_sym(*inputs)
             wrapped_sym._set_attr(name=sym.name)
             return wrapped_sym
+
         _new_fun.__name__ = f.__name__
         _new_fun.__module__ = f.__module__
         _new_fun.__doc__ = f.__doc__
@@ -190,9 +196,8 @@ def _wrap_module_functions(module, is_numpy_module, target_dtype, get_aliases, g
                 # NDArray case
                 widest_type = target_dtype
                 for _, _, arg in symbols:
-                    if isinstance(arg, NDArray):
-                        if arg.dtype == np.float32:
-                            widest_type = np.float32
+                    if isinstance(arg, NDArray) and arg.dtype == np.float32:
+                        widest_type = np.float32
                 for arr, index, arg in symbols:
                     if arg.dtype != widest_type and arg.dtype == target_dtype:
                         arr[index] = nd_mod.amp_cast(arg, dtype=widest_type)
@@ -206,6 +211,7 @@ def _wrap_module_functions(module, is_numpy_module, target_dtype, get_aliases, g
                     arr[index] = arg
 
             return f(*args, **kwargs)
+
         _new_fun.__name__ = f.__name__
         _new_fun.__module__ = f.__module__
         _new_fun.__doc__ = f.__doc__
@@ -277,11 +283,9 @@ def _wrap_loss_output_functions(module, ls, target_dtype):
             return _warning_wrapper
 
     for fun_name in list_loss_output_functions(target_dtype):
-        try:
+        with contextlib.suppress(AttributeError):
             f_to_wrap = getattr(module, fun_name)
             setattr(module, fun_name, _wrapper(f_to_wrap))
-        except AttributeError:
-            pass
 
 _amp_initialized = False
 _amp_loss_scale_initialized = False
@@ -516,18 +520,24 @@ def convert_symbol(sym, input_dtypes, param_dtypes, target_dtype, target_dtype_o
             opt_constraints |= HybridBlock.OptConstraint.Flag.DisableAMP.value
             node._set_attr(__opt_constraint__=str(opt_constraints))
 
-    if len(excluded_sym_names) > 0:
-        logging.warning("excluded_sym_names are not present in the network. Missing nodes: {}".format(
-            excluded_sym_names))
+    if excluded_sym_names:
+        logging.warning(
+            f"excluded_sym_names are not present in the network. Missing nodes: {excluded_sym_names}"
+        )
 
     # Op lists should not intersect
     common_ops = set(target_dtype_ops) & set(fp32_ops)
-    assert len(common_ops) == 0, "Common ops in target_dtype_ops and fp32_ops: {}".format(common_ops)
+    assert (
+        len(common_ops) == 0
+    ), f"Common ops in target_dtype_ops and fp32_ops: {common_ops}"
     common_ops = set(target_dtype_ops) & set(cond_ops)
-    assert len(common_ops) == 0, "Common ops in target_dtype_ops and conditional_fp32_ops: {}".format(
-        common_ops)
+    assert (
+        len(common_ops) == 0
+    ), f"Common ops in target_dtype_ops and conditional_fp32_ops: {common_ops}"
     common_ops = set(cond_ops) & set(fp32_ops)
-    assert len(common_ops) == 0, "Common ops in fp32_ops and conditional_fp32_ops: {}".format(common_ops)
+    assert (
+        len(common_ops) == 0
+    ), f"Common ops in fp32_ops and conditional_fp32_ops: {common_ops}"
 
     combined_ops = set(target_dtype_ops + fp32_ops + list(cond_ops.keys()))
     original_cond_ops = [cond_op[0] for cond_op in list_conditional_fp32_ops(target_dtype)]
@@ -619,8 +629,9 @@ def convert_model(sym, arg_params, aux_params, input_dtypes, target_dtype,
 
     arg_params = arg_params.copy()
     aux_params = aux_params.copy()
-    param_dtypes = {name: data.dtype for name, data in arg_params.items()}
-    param_dtypes.update({name: data.dtype for name, data in aux_params.items()})
+    param_dtypes = {name: data.dtype for name, data in arg_params.items()} | {
+        name: data.dtype for name, data in aux_params.items()
+    }
     sym = convert_symbol(sym, input_dtypes, param_dtypes, target_dtype, target_dtype_ops,
                          fp32_ops, conditional_fp32_ops, excluded_sym_names, cast_params_offline)
 
@@ -724,54 +735,48 @@ def list_lp16_ops(target_dtype):
     """
     if target_dtype in ['float16', np.float16]:
         return lists.symbol_fp16.FP16_FUNCS
-    else:
-        assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
-        return lists.symbol_bf16.BF16_FUNCS
+    assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
+    return lists.symbol_bf16.BF16_FUNCS
 
 def list_fp32_ops(target_dtype):
     """Get the default list of FP32 ops for AMP
     """
     if target_dtype in ['float16', np.float16]:
         return lists.symbol_fp16.FP32_FUNCS
-    else:
-        assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
-        return lists.symbol_bf16.FP32_FUNCS
+    assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
+    return lists.symbol_bf16.FP32_FUNCS
 
 def list_lp16_fp32_ops(target_dtype):
     """Get the default list of ops which run in both LP16 and FP32
     """
     if target_dtype in ['float16', np.float16]:
         return lists.symbol_fp16.FP16_FP32_FUNCS
-    else:
-        assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
-        return lists.symbol_bf16.BF16_FP32_FUNCS
+    assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
+    return lists.symbol_bf16.BF16_FP32_FUNCS
 
 def list_conditional_fp32_ops(target_dtype):
     """Get the conditional fp32 ops list
     """
     if target_dtype in ['float16', np.float16]:
         return lists.symbol_fp16.CONDITIONAL_FP32_FUNCS
-    else:
-        assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
-        return lists.symbol_bf16.CONDITIONAL_FP32_FUNCS
+    assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
+    return lists.symbol_bf16.CONDITIONAL_FP32_FUNCS
 
 def list_widest_type_cast(target_dtype):
     """Get the widest type cast ops list
     """
     if target_dtype in ['float16', np.float16]:
         return lists.symbol_fp16.WIDEST_TYPE_CASTS
-    else:
-        assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
-        return lists.symbol_bf16.WIDEST_TYPE_CASTS
+    assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
+    return lists.symbol_bf16.WIDEST_TYPE_CASTS
 
 def list_loss_output_functions(target_dtype):
     """Get loss function list
     """
     if target_dtype in ['float16', np.float16]:
         return lists.symbol_fp16.LOSS_OUTPUT_FUNCTIONS
-    else:
-        assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
-        return lists.symbol_bf16.LOSS_OUTPUT_FUNCTIONS
+    assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
+    return lists.symbol_bf16.LOSS_OUTPUT_FUNCTIONS
 
 def list_lp16_use_fp32_params(target_dtype):
     """ Get the params restrict for LP16
@@ -779,6 +784,5 @@ def list_lp16_use_fp32_params(target_dtype):
     """
     if target_dtype in ['float16', np.float16]:
         return None
-    else:
-        assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
-        return lists.symbol_bf16.BF16_USE_FP32_PARAMS
+    assert get_dtype_name(target_dtype) in bfloat16.names, "not supported type"
+    return lists.symbol_bf16.BF16_USE_FP32_PARAMS

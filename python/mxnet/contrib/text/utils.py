@@ -71,13 +71,11 @@ def count_tokens_from_str(source_str, token_delim=' ', seq_delim='\n',
     Counter({'is': 2, 'life': 2, '!': 1, 'great': 1, 'good': 1, '.': 1})
     """
 
-    source_str = filter(None,
-                        re.split(token_delim + '|' + seq_delim, source_str))
+    source_str = filter(None, re.split(f'{token_delim}|{seq_delim}', source_str))
     if to_lower:
         source_str = [t.lower() for t in source_str]
 
     if counter_to_update is None:
         return collections.Counter(source_str)  # pylint: disable=too-many-function-args
-    else:
-        counter_to_update.update(source_str)
-        return counter_to_update
+    counter_to_update.update(source_str)
+    return counter_to_update

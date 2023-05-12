@@ -60,7 +60,7 @@ print("Input data prepared in {:8.2f}s".format(time_consumed))
 print("Measure accuracy on the whole data set could take a long time. Please wait...")
 root_path = '__resnet50_v2_'
 symbol_part = '-symbol.json'
-for symbol in glob.glob(root_path + '*' + symbol_part):
+for symbol in glob.glob(f'{root_path}*{symbol_part}'):
   param = symbol.replace(symbol_part,'-0000.params')
   net_name = symbol.replace(root_path,'').replace(symbol_part,'').replace('_', ' ')
   net = mx.gluon.SymbolBlock.imports(symbol, ['data'], param)

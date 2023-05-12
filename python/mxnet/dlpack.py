@@ -181,7 +181,7 @@ def ndarray_from_numpy(array_cls, array_create_fn):
 
         def _make_dl_tensor(array):
             if str(array.dtype) not in DLDataType.TYPE_MAP:
-                raise ValueError(str(array.dtype) + " is not supported.")
+                raise ValueError(f"{str(array.dtype)} is not supported.")
             dl_tensor = DLTensor()
             dl_tensor.data = array.ctypes.data_as(ctypes.c_void_p)
             dl_tensor.ctx = DLContext(1, 0)
@@ -210,4 +210,5 @@ def ndarray_from_numpy(array_cls, array_create_fn):
         handle = NDArrayHandle()
         check_call(_LIB.MXNDArrayFromDLPack(ctypes.byref(c_obj), True, ctypes.byref(handle)))
         return array_cls(handle=handle)
+
     return from_numpy

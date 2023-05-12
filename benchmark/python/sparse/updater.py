@@ -55,22 +55,18 @@ else:
     weight = ones.copy()
     grad = ones.copy()
 
-if args.dense_state:
-    mean = ones.copy()
-else:
-    mean = ones.tostype('row_sparse')
-
+mean = ones.copy() if args.dense_state else ones.tostype('row_sparse')
 var = mean.copy()
 
-# warmup 
-for i in range(10):
+# warmup
+for _ in range(10):
     adam_update(weight, grad, mean, var, out=weight, lr=1, wd=0, beta1=0.9,
                 beta2=0.99, rescale_grad=0.5, epsilon=1e-8)
 weight.wait_to_read()
 
 # measure speed
 a = time.time()
-for i in range(args.repeat):
+for _ in range(args.repeat):
     adam_update(weight, grad, mean, var, out=weight, lr=1, wd=0, beta1=0.9,
                 beta2=0.99, rescale_grad=0.5, epsilon=1e-8)
 weight.wait_to_read()

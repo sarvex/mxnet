@@ -213,9 +213,10 @@ class GELU(HybridBlock):
     """
     def __init__(self, approximation='erf', **kwargs):
         if approximation not in ['erf', 'tanh']:
-            raise ValueError("Unsupported approximation! Supported values are 'erf' and 'tanh', "
-                             "but got '{}'".format(approximation))
-        self._act_algorithm = 'gelu_' + approximation
+            raise ValueError(
+                f"Unsupported approximation! Supported values are 'erf' and 'tanh', but got '{approximation}'"
+            )
+        self._act_algorithm = f'gelu_{approximation}'
         super(GELU, self).__init__(**kwargs)
 
     def forward(self, x):

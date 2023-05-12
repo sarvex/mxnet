@@ -63,7 +63,7 @@ def _block_scope(block):
     counter_token = _naming_counter.set({})
     prefix_token = _prefix.set(_prefix.get() + name + '_')
     with _name.Prefix(_prefix.get()):
-        with _profiler.scope(name + ':'):
+        with _profiler.scope(f'{name}:'):
             yield
     _naming_counter.reset(counter_token)
     _prefix.reset(prefix_token)
@@ -135,19 +135,18 @@ def _flatten(args, inout_str):
         Stores the format information of the original structured args.
     """
     if isinstance(args, NDArray):
-        return [args], int(0)
+        return [args], 0
     if isinstance(args, Symbol):
         length = len(args.list_outputs())
         length = length if length > 1 else 0
-        return [args], int(length)
+        return [args], length
     if args is None:
-        return [None], int(-1)
+        return [None], -1
 
     if not isinstance(args, (list, tuple)):
-        raise ValueError("When hybridized, the input of HybridBlock {}"
-                         " must be (nested) list of Symbol"
-                         " or NDArray, "
-                         "but got {} of type {}".format(inout_str, str(args), str(type(args))))
+        raise ValueError(
+            f"When hybridized, the input of HybridBlock {inout_str} must be (nested) list of Symbol or NDArray, but got {str(args)} of type {str(type(args))}"
+        )
     flat = []
     fmts = []
     for i in args:
@@ -276,18 +275,27 @@ class Block:
                         return True
                 return False
             elif isinstance(data, Block):
-                return not data in (c() for c in children)
+                return data not in (c() for c in children)
             else:
                 return False
+
         for k, v in self.__dict__.items():
-            if isinstance(v, (list, tuple, dict)) and not (k.startswith('__') or k == '_children'):
-                if _find_unregistered_block_in_container(v):
-                    warnings.warn('"{name}" is an unregistered container with Blocks. '
-                                  'Note that Blocks inside the list, tuple or dict will not be '
-                                  'registered automatically. Make sure to register them using '
-                                  'register_child() or switching to '
-                                  'nn.Sequential/nn.HybridSequential instead. '
-                                  .format(name=self.__class__.__name__ + "." + k), stacklevel=3)
+            if (
+                isinstance(v, (list, tuple, dict))
+                and not k.startswith('__')
+                and k != '_children'
+                and _find_unregistered_block_in_container(v)
+            ):
+                warnings.warn(
+                    '"{name}" is an unregistered container with Blocks. '
+                    'Note that Blocks inside the list, tuple or dict will not be '
+                    'registered automatically. Make sure to register them using '
+                    'register_child() or switching to '
+                    'nn.Sequential/nn.HybridSequential instead. '.format(
+                        name=f"{self.__class__.__name__}.{k}"
+                    ),
+                    stacklevel=3,
+                )
 
     def _alias(self):
         return self.__class__.__name__.lower()
@@ -336,7 +344,7 @@ class Block:
             ret = {prefix + key : val for key, val in self._reg_params.items() if pattern.match(prefix + key)}
 
         for name, child in self._children.items():
-            ret.update(child()._collect_params_with_prefix(prefix + name, select))
+            ret |= child()._collect_params_with_prefix(prefix + name, select)
         return ret
 
     def save_parameters(self, filename, deduplicate=False):
@@ -412,19 +420,19 @@ class Block:
                 loaded = _mx_npx.load(filename)
             except MXNetError as e:
                 err_msg = str(e)
-                if 'is_np_shape' in err_msg:
-                    # Loading failure due to parameters saved without numpy semantics.
-                    # Temporarily disable numpy semantics and load parameters. After it's
-                    # done, resume the numpy semantics. This is fine because the cases
-                    # numpy ndarray covers is a superset of the legacy ndarray's.
-                    with np_array(False):
-                        with np_shape(False):
-                            loaded_nds = ndarray.load(filename)
-                    assert isinstance(loaded_nds, dict),\
-                        'expecting a dict type, got {}'.format(str(type(loaded_nds)))
-                    loaded = {k: loaded_nds[k].as_np_ndarray() for k in loaded_nds}
-                else:
+                if 'is_np_shape' not in err_msg:
                     raise ValueError(err_msg)
+                # Loading failure due to parameters saved without numpy semantics.
+                # Temporarily disable numpy semantics and load parameters. After it's
+                # done, resume the numpy semantics. This is fine because the cases
+                # numpy ndarray covers is a superset of the legacy ndarray's.
+                with np_array(False):
+                    with np_shape(False):
+                        loaded_nds = ndarray.load(filename)
+                assert isinstance(
+                    loaded_nds, dict
+                ), f'expecting a dict type, got {str(type(loaded_nds))}'
+                loaded = {k: loaded_nds[k].as_np_ndarray() for k in loaded_nds}
         else:
             loaded = ndarray.load(filename)
 
@@ -642,7 +650,7 @@ class Block:
         # save top-level block
         _save_cached_graphs(self, model)
         # save model
-        with open(prefix+'-model.json', 'w') as fp:
+        with open(f'{prefix}-model.json', 'w') as fp:
             json.dump(model, fp)
         # save params
         self.save_parameters('MyModel-model.params')
@@ -674,7 +682,7 @@ class Block:
             <prefix>-model.json and <prefix>-model.params
         """
         # load model json from file
-        with open(prefix+'-model.json') as fp:
+        with open(f'{prefix}-model.json') as fp:
             model = json.load(fp)
 
         def _load_cached_graphs(blk, structure, index=0):
@@ -683,20 +691,19 @@ class Block:
             # lookup previous encoded name based on block type and ID
             mdl = structure[name+str(index)]
             index += 1
-            if isinstance(blk, HybridBlock):
-                if mdl['hybridized']:
-                    # restore in/out formats
-                    blk._in_format = mdl['in_format']
-                    blk._out_format = mdl['out_format']
-                    # get saved symbol
-                    out = fromjson(mdl['symbol'])
-                    syms = []
-                    # recreate inputs for this symbol
-                    for inp in mdl['inputs']:
-                        syms.append(fromjson(inp))
-                    # reset cached_graph and active status
-                    blk._cached_graph = (syms, out)
-                    blk._active = True
+            if isinstance(blk, HybridBlock) and mdl['hybridized']:
+                # restore in/out formats
+                blk._in_format = mdl['in_format']
+                blk._out_format = mdl['out_format']
+                # get saved symbol
+                out = fromjson(mdl['symbol'])
+                syms = []
+                # recreate inputs for this symbol
+                for inp in mdl['inputs']:
+                    syms.append(fromjson(inp))
+                # reset cached_graph and active status
+                blk._cached_graph = (syms, out)
+                blk._active = True
             # reload param uuids
             pmap = mdl['params']
             for p, uuid in pmap.items():
@@ -743,13 +750,12 @@ class Block:
             for g in p.list_grad():
                 if g.stype == 'row_sparse':
                     ndarray.zeros_like(g, out=g)
+                elif is_np_array():
+                    arrays[g.device].append(g.as_nd_ndarray())
                 else:
-                    if is_np_array():
-                        arrays[g.device].append(g.as_nd_ndarray())
-                    else:
-                        arrays[g.device].append(g)
+                    arrays[g.device].append(g)
 
-        if len(arrays) == 0:
+        if not arrays:
             return
 
         for arr in arrays.values():
@@ -830,12 +836,14 @@ class Block:
         if shared is None:
             return self
         if not isinstance(shared, (dict, OrderedDict)):
-            raise ValueError("'shared' should be in type of Dict. Get type {}!".format(type(shared)))
+            raise ValueError(
+                f"'shared' should be in type of Dict. Get type {type(shared)}!"
+            )
         shared_set = set(shared.keys())
         self._shared_parameters(shared, shared_set)
-        if len(shared_set) > 0:
+        if shared_set:
             for name in shared_set:
-                warnings.warn("Parameter name {} is not in the current model!".format(name))
+                warnings.warn(f"Parameter name {name} is not in the current model!")
         return self
 
     def _shared_parameters(self, shared, shared_set, prefix=""):
@@ -909,7 +917,7 @@ class Block:
         def _get_shape_str(args):
             def flatten(args):
                 if not isinstance(args, (list, tuple)):
-                    return [args], int(0)
+                    return [args], 0
                 flat = []
                 fmts = []
                 for i in args:
@@ -920,9 +928,7 @@ class Block:
 
             def regroup(args, fmt):
                 if isinstance(fmt, int):
-                    if fmt == 0:
-                        return args[0], args[1:]
-                    return args[:fmt], args[fmt:]
+                    return (args[0], args[1:]) if fmt == 0 else (args[:fmt], args[fmt:])
                 ret = []
                 for i in fmt:
                     res, args = regroup(args, i)
@@ -933,15 +939,12 @@ class Block:
             flat_arg_shapes = [x.shape if isinstance(x, ndarray.NDArray) else x
                                for x in flat_args]
             shapes = regroup(flat_arg_shapes, fmts)[0]
-            if isinstance(shapes, list):
-                shape_str = str(shapes)[1:-1]
-            else:
-                shape_str = str(shapes)
+            shape_str = str(shapes)[1:-1] if isinstance(shapes, list) else str(shapes)
             return shape_str.replace('L', '')
 
         def _register_summary_hook(block):
             assert not isinstance(block, HybridBlock) or not block._active, \
-                    '"{}" must not be hybridized to print summary.'.format(type(block).__name__)
+                        '"{}" must not be hybridized to print summary.'.format(type(block).__name__)
             def _summary_hook(block, _, outputs):
                 class_name = block.__class__.__name__
                 block_idx = len(summary) - 1
@@ -992,11 +995,11 @@ class Block:
                 shared_params += summary[layer]['shared']
             print('='*80)
             print('Parameters in forward computation graph, duplicate included')
-            print('   Total params: ' + str(total_params))
-            print('   Trainable params: ' + str(trainable_params))
-            print('   Non-trainable params: ' + str(total_params - trainable_params))
-            print('Shared params in forward computation graph: ' + str(shared_params))
-            print('Unique parameters in model: ' + str(total_params - shared_params))
+            print(f'   Total params: {str(total_params)}')
+            print(f'   Trainable params: {str(trainable_params)}')
+            print(f'   Non-trainable params: {str(total_params - trainable_params)}')
+            print(f'Shared params in forward computation graph: {str(shared_params)}')
+            print(f'Unique parameters in model: {str(total_params - shared_params)}')
             print('-'*80)
         finally:
             for h in hooks:
@@ -1102,16 +1105,17 @@ class HybridBlock(Block):
 
     @staticmethod
     def generate_arg_names(arg_num):
-        return ['data'] if arg_num == 1 else ['data{}'.format(i) for i in range(arg_num)]
+        return ['data'] if arg_num == 1 else [f'data{i}' for i in range(arg_num)]
 
     def _get_graph(self, *args):
         if not self._cached_graph:
             flatten_args, self._in_format = _flatten(args, "input")
             flatten_args = [ele.detach() if ele is not None else None for ele in flatten_args]
             real_args = [ele for ele in flatten_args if ele is not None]
-            if len(real_args) == 0:
-                raise ValueError('All args are None and we do not support such a case.'
-                                 ' Received args={}'.format(args))
+            if not real_args:
+                raise ValueError(
+                    f'All args are None and we do not support such a case. Received args={args}'
+                )
             arg_names = HybridBlock.generate_arg_names(len(real_args))
             symbol_inputs = [
                 symbol.var(name).as_np_ndarray()
@@ -1138,7 +1142,7 @@ class HybridBlock(Block):
         expected_names = set(input_names)
         for name in expected_names:
             assert name in param_names or name in data_names, \
-                f"Unknown input to HybridBlock: {name}"
+                    f"Unknown input to HybridBlock: {name}"
 
         used_data_names = [i for i in data_names if i in expected_names]
         if len(used_data_names) != len(data_names):
@@ -1164,15 +1168,15 @@ class HybridBlock(Block):
                 if name in params:
                     params[name]._finish_deferred_init()
 
-        arg_dict, aux_dict = dict(), dict()
+        arg_dict, aux_dict = {}, {}
         if self._backend:
             # set device for inputs
             _, _, device_set, _ = _gather_type_device_info(list(args))
             device = device_set.pop() if len(device_set) > 0 else None
             # get list of params in the order of out.list_arguments
-            input_shapes = dict()
+            input_shapes = {}
             for name in out.list_arguments():
-                if name in data_names.keys() and data_names[name] < len(args):
+                if name in data_names and data_names[name] < len(args):
                     if isinstance(args[data_names[name]], NDArray):
                         arg_dict[name] = args[data_names[name]]
                     elif (isinstance(args[data_names[name]], symbol.Symbol) and
@@ -1183,7 +1187,7 @@ class HybridBlock(Block):
                     arg_dict[name] = params[name].data()
 
             for name in out.list_auxiliary_states():
-                if name in data_names.keys() and data_names[name] < len(args):
+                if name in data_names and data_names[name] < len(args):
                     if isinstance(args[data_names[name]], NDArray):
                         aux_dict[name] = args[data_names[name]]
                     elif (isinstance(args[data_names[name]], symbol.Symbol) and
@@ -1250,8 +1254,7 @@ class HybridBlock(Block):
         try:
             self.infer_shape(*args)
         except Exception as e:
-            error_msg = "Deferred initialization failed because shape"\
-                        " cannot be inferred. {}".format(e)
+            error_msg = f"Deferred initialization failed because shape cannot be inferred. {e}"
             raise ValueError(error_msg)
 
     def _call_cached_op(self, *args):
@@ -1262,16 +1265,15 @@ class HybridBlock(Block):
             self._first_forward = False
             # partition static shape ops if the graph contains any dynamic shape op
             _, out = self._cached_graph
-            is_dynamic = out.has_dynamic_shape_op()
-            if is_dynamic:
+            if is_dynamic := out.has_dynamic_shape_op():
                 self._backend = 'static_shape'
-                self._backend_opts = {k : v for k, v in self._flags}
+                self._backend_opts = dict(self._flags)
                 self._build_cache(*args, update_graph=False)
 
         assert self._cached_op, "Gluon failed to build the cache. " \
-                                "This should never happen. " \
-                                "Please submit an issue on Github" \
-                                " https://github.com/apache/mxnet."
+                                    "This should never happen. " \
+                                    "Please submit an issue on Github" \
+                                    " https://github.com/apache/mxnet."
         if self._callback:
             self._cached_op._register_op_hook(self._callback, self._monitor_all)
             if len(self._flags) >= 2 and (self._flags[1] or self._flags[0]):
@@ -1283,19 +1285,20 @@ class HybridBlock(Block):
             # Do not raise in the case that the fmt or stored_fmt ends with None and
             # We are relying on the default values.
             if len(self._in_format) > len(fmt):
-                valid = all([self._in_format[i] == -1
-                             for i in range(len(fmt), len(self._in_format))])
+                valid = all(
+                    self._in_format[i] == -1
+                    for i in range(len(fmt), len(self._in_format))
+                )
                 valid = valid and (fmt == self._in_format[:len(fmt)])
             elif len(self._in_format) < len(fmt):
-                valid = all([fmt[i] == -1
-                             for i in range(len(self._in_format), len(fmt))])
+                valid = all(fmt[i] == -1 for i in range(len(self._in_format), len(fmt)))
                 valid = valid and (fmt[:len(self._in_format)] == self._in_format)
             else:
                 valid = False
             if not valid:
-                raise ValueError("The argument structure of HybridBlock does not match"
-                                 " the cached version. Stored format = {}, input format = {}"
-                                 .format(fmt, self._in_format))
+                raise ValueError(
+                    f"The argument structure of HybridBlock does not match the cached version. Stored format = {fmt}, input format = {self._in_format}"
+                )
 
         args_without_none = [ele for ele in args if ele is not None]
         cargs = [args_without_none[i] if is_arg else i.data()
@@ -1362,7 +1365,7 @@ class HybridBlock(Block):
             Passed on to `PrePartition` and `PostPartition` functions of `SubgraphProperty`
         """
         self._backend = backend
-        if len(kwargs) > 0:
+        if kwargs:
             self._backend_opts = kwargs
 
         if clear or not self._active:
@@ -1375,17 +1378,15 @@ class HybridBlock(Block):
             raise ValueError('In HybridBlock, there must be one NDArray or one Symbol in the input.'
                              ' Please check the type of the args.\n')
         if len(device_set) > 1:
-            raise ValueError('Found multiple devices in the input, '
-                             'After hybridized, the HybridBlock only supports one input '
-                             'device. You can print the ele.device in the '
-                             'input arguments to inspect their devices. '
-                             'Find all devices = {}'.format(device_set))
+            raise ValueError(
+                f'Found multiple devices in the input, After hybridized, the HybridBlock only supports one input device. You can print the ele.device in the input arguments to inspect their devices. Find all devices = {device_set}'
+            )
 
         self._build_cache(x, *args)
         assert self._cached_op, "Gluon failed to build the cache. " \
-                                "This should never happen. " \
-                                "Please submit an issue on Github" \
-                                " https://github.com/apache/mxnet."
+                                    "This should never happen. " \
+                                    "Please submit an issue on Github" \
+                                    " https://github.com/apache/mxnet."
         # do not actually call the cached_op
 
         self._first_forward = True
@@ -1479,20 +1480,18 @@ class HybridBlock(Block):
                 **{i.name: getattr(j, attr) for i, j in zip(inputs, args_without_none)})
             if arg_attrs is None:
                 raise ValueError(w[0].message)
-        sdict = {i: j for i, j in zip(out.list_arguments(), arg_attrs)}
-        sdict.update({name : attr for name, attr in \
-             zip(out.list_auxiliary_states(), aux_attrs)})
+        sdict = dict(zip(out.list_arguments(), arg_attrs)) | zip(
+            out.list_auxiliary_states(), aux_attrs
+        )
         for i in self.collect_params().values():
             setattr(i, attr, sdict[i.var().name])
 
     def infer_shape(self, *args):
         """Infers shape of Parameters from inputs."""
-        # pylint: disable=unused-argument
-        # In Gluon 2, users must implement infer_shape, if any deferred
-        # initialized parameters are associated with the HybridBlock
-        params = [p for p in self._reg_params.values() if not shape_is_known(p.shape)]
-        if params:
-            params_str = ", ".join("{} ({})".format(p.name, p.shape) for p in params)
+        if params := [
+            p for p in self._reg_params.values() if not shape_is_known(p.shape)
+        ]:
+            params_str = ", ".join(f"{p.name} ({p.shape})" for p in params)
             raise RuntimeError(
                 "{name} has parameters with unknown shape. You need to either specify the shape "
                 "in __init__ or implement {name}.infer_shape to set the parameter shapes "
@@ -1546,7 +1545,7 @@ class HybridBlock(Block):
         for var in sym.get_inputs():
             if var.name in rename_map:
                 var._set_attr(name=rename_map[var.name])
-        
+
         path_string = path if path is not None else ""
         sym_filename = f'{path_string}-symbol.json'
         if path is not None:
@@ -1558,13 +1557,12 @@ class HybridBlock(Block):
         for is_arg, name, param in self._cached_op_args:
             if not is_arg:
                 if name in arg_names:
-                    arg_dict['arg:{}'.format(name)] = param._reduce()
+                    arg_dict[f'arg:{name}'] = param._reduce()
+                elif name in aux_names:
+                    arg_dict[f'aux:{name}'] = param._reduce()
                 else:
-                    if name not in aux_names:
-                        warnings.warn('Parameter "{name}" is not found in the graph. '
-                                      .format(name=name), stacklevel=3)
-                    else:
-                        arg_dict[f'aux:{name}'] = param._reduce()
+                    warnings.warn('Parameter "{name}" is not found in the graph. '
+                                  .format(name=name), stacklevel=3)
         params_filename = f'{path_string}-{epoch:04d}.params'
 
         if path is not None:
@@ -1618,14 +1616,10 @@ class HybridBlock(Block):
         if not has_ndarray:
             raise ValueError('In HybridBlock, there must be one NDArray in the input.'
                              ' Please check the type of the args.\n')
-        if self._active and not dc.is_deferred_compute():
-            # Do not call CachedOp if not hybridized or inside deferred compute mode.
-            if len(device_set) > 1:
-                raise ValueError('Find multiple devices in the input, '
-                                 'After hybridized, the HybridBlock only supports one input '
-                                 'device. You can print the ele.device in the '
-                                 'input arguments to inspect their devices. '
-                                 'Find all devices = {}'.format(device_set))
+        if self._active and not dc.is_deferred_compute() and len(device_set) > 1:
+            raise ValueError(
+                f'Find multiple devices in the input, After hybridized, the HybridBlock only supports one input device. You can print the ele.device in the input arguments to inspect their devices. Find all devices = {device_set}'
+            )
 
         if not self._called_infer_shape_already:
             self.infer_shape(x, *args)
@@ -1786,7 +1780,7 @@ class SymbolBlock(HybridBlock):
         input_names = set()
         for i in syms:
             assert len(i.get_internals().list_outputs()) == 1, \
-                f"Input symbols must be variable, but {str(i)} is an output of operators"
+                    f"Input symbols must be variable, but {str(i)} is an output of operators"
             input_names.add(i.name)
 
         # check if any symbol is row_sparse
@@ -1795,8 +1789,8 @@ class SymbolBlock(HybridBlock):
         for i in out:
             for j in i.get_internals():
                 assert(j.attr("__storage_type__") != str(row_sparse_storage)), \
-                    f"SymbolBlock doesn't support Parameter '{j.name}' because its storage " \
-                    "type is 'row_sparse'."
+                        f"SymbolBlock doesn't support Parameter '{j.name}' because its storage " \
+                        "type is 'row_sparse'."
         if len(out) > 1:
             out = symbol.Group(out, _check_same_symbol_type(out))
         else:
@@ -1813,7 +1807,7 @@ class SymbolBlock(HybridBlock):
             params = {}
         unused_params = set(params.keys()) - set(arg_params) - set(aux_params)
         if len(unused_params) > 0:
-            raise ValueError('{} params are unused by the model.'.format(unused_params))
+            raise ValueError(f'{unused_params} params are unused by the model.')
         self._reg_params = params
 
         for i, arg in enumerate(arg_params):
@@ -1949,7 +1943,7 @@ def _infer_param_types(in_params, out_params, arg_params, aux_params, default_dt
 
     # Try to infer types of other parameters.
     if can_infer_input_type:
-        params = {k:v for k, v in zip(input_sym_names, input_sym_arg_types)}
+        params = dict(zip(input_sym_names, input_sym_arg_types))
         try:
             arg_types, _, aux_types = out_params.infer_type(**params)
         except MXNetError:
@@ -1957,15 +1951,9 @@ def _infer_param_types(in_params, out_params, arg_params, aux_params, default_dt
             arg_types, aux_types = None, None
 
     if arg_types is None or len(arg_types) != len(arg_params):
-        arg_types = []
-        for _ in arg_params:
-            arg_types.append(default_dtype)
-
+        arg_types = [default_dtype for _ in arg_params]
     if aux_types is None or len(aux_types) != len(aux_params):
-        aux_types = []
-        for _ in aux_params:
-            aux_types.append(default_dtype)
-
+        aux_types = [default_dtype for _ in aux_params]
     return (arg_types, aux_types)
 
 

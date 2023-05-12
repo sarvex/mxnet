@@ -83,23 +83,22 @@ def config_cython():
             # These precede LD_LIBRARY_PATH.
             extra_link_args = ["-Wl,-rpath,$ORIGIN/..:$ORIGIN/../../../lib:$ORIGIN/../../../build"]
 
-        for fn in os.listdir(path):
-            if not fn.endswith(".pyx"):
-                continue
-            ret.append(Extension(
+        ret.extend(
+            Extension(
                 f"mxnet.{subdir}.{fn[:-4]}",
                 [f"mxnet/cython/{fn}"],
                 include_dirs=["../include/", "../3rdparty/tvm/nnvm/include"],
                 library_dirs=library_dirs,
                 libraries=libraries,
                 extra_link_args=extra_link_args,
-                language="c++"))
-
+                language="c++",
+            )
+            for fn in os.listdir(path)
+            if fn.endswith(".pyx")
+        )
         path = "mxnet/_ffi/_cython"
-        for fn in os.listdir(path):
-            if not fn.endswith(".pyx"):
-                continue
-            ret.append(Extension(
+        ret.extend(
+            Extension(
                 f"mxnet._ffi.{subdir}.{fn[:-4]}",
                 [f"mxnet/_ffi/_cython/{fn}"],
                 include_dirs=["../include/", "../3rdparty/tvm/nnvm/include"],
@@ -107,8 +106,11 @@ def config_cython():
                 libraries=libraries,
                 extra_compile_args=["-std=c++17"],
                 extra_link_args=extra_link_args,
-                language="c++"))
-
+                language="c++",
+            )
+            for fn in os.listdir(path)
+            if fn.endswith(".pyx")
+        )
         # If `force=True` is not used and you cythonize the modules for python2 and python3
         # successively, you need to delete `mxnet/cython/ndarray.cpp` after the first cythonize.
         return cythonize(ret, force=True)

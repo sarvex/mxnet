@@ -72,12 +72,11 @@ class Sequential(Block):
 
     def __getitem__(self, key):
         layers = list(self._children.values())[key]
-        if isinstance(layers, list):
-            net = type(self)()
-            net.add(*(l() for l in layers))
-            return net
-        else:
+        if not isinstance(layers, list):
             return layers()
+        net = type(self)()
+        net.add(*(l() for l in layers))
+        return net
 
     def __len__(self):
         return len(self._children)
@@ -141,12 +140,11 @@ class HybridSequential(HybridBlock):
 
     def __getitem__(self, key):
         layers = list(self._children.values())[key]
-        if isinstance(layers, list):
-            net = type(self)()
-            net.add(*(l() for l in layers))
-            return net
-        else:
+        if not isinstance(layers, list):
             return layers()
+        net = type(self)()
+        net.add(*(l() for l in layers))
+        return net
 
     def __len__(self):
         return len(self._children)
@@ -217,10 +215,7 @@ class Dense(HybridBlock):
                                   allow_deferred_init=True)
         else:
             self.bias = None
-        if activation is not None:
-            self.act = Activation(activation)
-        else:
-            self.act = None
+        self.act = Activation(activation) if activation is not None else None
 
     def forward(self, x):
         device = x.device
@@ -394,9 +389,10 @@ class _BatchNorm(HybridBlock):
         self.running_var.shape = (channel_count,)
 
     def __repr__(self):
-        s = '{name}({content}'
         in_channels = self.gamma.shape[0]
-        s += ', in_channels={0}'.format(in_channels if in_channels else None)
+        s = '{name}({content}' + ', in_channels={0}'.format(
+            in_channels if in_channels else None
+        )
         s += ')'
         return s.format(name=self.__class__.__name__,
                         content=', '.join(['='.join([k, v.__repr__()])
@@ -631,9 +627,7 @@ class InstanceNorm(HybridBlock):
         self.beta.shape = (x.shape[1],)
 
     def __repr__(self):
-        s = '{name}({content}'
-        in_channels = self.gamma.shape[0]
-        s += ', in_channels={0}'.format(in_channels)
+        s = '{name}({content}' + ', in_channels={0}'.format(self.gamma.shape[0])
         s += ')'
         return s.format(name=self.__class__.__name__,
                         content=', '.join(['='.join([k, v.__repr__()])
@@ -722,9 +716,7 @@ class LayerNorm(HybridBlock):
         self.beta.shape = (channel_count,)
 
     def __repr__(self):
-        s = '{name}({content}'
-        in_channels = self.gamma.shape[0]
-        s += ', in_channels={0}'.format(in_channels)
+        s = '{name}({content}' + ', in_channels={0}'.format(self.gamma.shape[0])
         s += ')'
         return s.format(name=self.__class__.__name__,
                         content=', '.join(['='.join([k, v.__repr__()])
@@ -810,18 +802,20 @@ class GroupNorm(HybridBlock):
 
     def forward(self, data):
         device = data.device
-        norm_data = npx.group_norm(data, gamma=self.gamma.data(device), beta=self.beta.data(device),
-                                   num_groups=self._num_groups, eps=self._epsilon)
-        return norm_data
+        return npx.group_norm(
+            data,
+            gamma=self.gamma.data(device),
+            beta=self.beta.data(device),
+            num_groups=self._num_groups,
+            eps=self._epsilon,
+        )
 
     def infer_shape(self, data, *args):
         self.gamma.shape = (data.shape[1],)
         self.beta.shape = (data.shape[1],)
 
     def __repr__(self):
-        s = '{name}({content}'
-        in_channels = self.gamma.shape[0]
-        s += ', in_channels={0}'.format(in_channels)
+        s = '{name}({content}' + ', in_channels={0}'.format(self.gamma.shape[0])
         s += ')'
         return s.format(name=self.__class__.__name__,
                         content=', '.join(['='.join([k, v.__repr__()])
@@ -864,8 +858,8 @@ class Lambda(Block):
             self._func_impl = function
         else:
             raise ValueError(
-                "Unrecognized function in lambda: {} of type {}"
-                .format(function, type(function)))
+                f"Unrecognized function in lambda: {function} of type {type(function)}"
+            )
 
     def forward(self, *args):
         return self._func_impl(*args)
@@ -914,8 +908,8 @@ class HybridLambda(HybridBlock):
             self._func_name = function.__name__
         else:
             raise ValueError(
-                "Unrecognized function in lambda: {} of type {}"
-                .format(function, type(function)))
+                f"Unrecognized function in lambda: {function} of type {type(function)}"
+            )
 
     def forward(self, x, *args):
         return self._func(x, *args)
@@ -950,9 +944,7 @@ class Concatenate(Sequential):
         self.axis = axis
 
     def forward(self, x):
-        out = []
-        for block in self._children.values():
-            out.append(block()(x))
+        out = [block()(x) for block in self._children.values()]
         out = np.concatenate(out, axis=self.axis)
         return out
 
@@ -982,9 +974,7 @@ class HybridConcatenate(HybridSequential):
         self.axis = axis
 
     def forward(self, x):
-        out = []
-        for block in self._children.values():
-            out.append(block()(x))
+        out = [block()(x) for block in self._children.values()]
         out = np.concatenate(out, axis=self.axis)
         return out
 

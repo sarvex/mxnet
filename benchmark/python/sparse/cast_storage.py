@@ -32,7 +32,7 @@ args = parser.parse_args()
 def measure_cost(repeat, f, *args, **kwargs):
     start = time.time()
     results = []
-    for i in range(repeat):
+    for _ in range(repeat):
         (f(*args, **kwargs)).wait_to_read()
     end = time.time()
     diff = end - start

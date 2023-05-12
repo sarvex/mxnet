@@ -101,10 +101,7 @@ def list_global_func_names():
 
     check_call(_LIB.MXNetFuncListGlobalNames(ctypes.byref(size),
                                              ctypes.byref(plist)))
-    fnames = []
-    for i in range(size.value):
-        fnames.append(py_str(plist[i]))
-    return fnames
+    return [py_str(plist[i]) for i in range(size.value)]
 
 
 def _get_api(f):

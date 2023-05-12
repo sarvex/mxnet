@@ -52,7 +52,7 @@ def process_dataset(root_directory, splits=splits, classes=targets, train=0.7, v
             for file_path in split:
                 shutil.move(file_path, new_path)
             logger.info(f"Finished moving {splits[idx]} files")
-    logger.info(f"Finished moving files")
+    logger.info("Finished moving files")
     logger.info("Removing old folders")
     shutil.rmtree(root_directory)
     logger.info("Finished!")

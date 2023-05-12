@@ -156,9 +156,7 @@ class Dataset(object):
             The transformed dataset.
         """
         trans = _LazyTransformDataset(self, fn)
-        if lazy:
-            return trans
-        return SimpleDataset([i for i in trans])
+        return trans if lazy else SimpleDataset(list(trans))
 
     def transform_first(self, fn, lazy=True):
         """Returns a new dataset with the first element of each sample
@@ -214,8 +212,8 @@ class SimpleDataset(Dataset):
                 self._handle = NDArrayDataset(arr=default_array(self._data))
             else:
                 raise NotImplementedError(
-                    "C++ handle for general type object is not supported, "
-                    "given {}, expect np.ndarray".format(type(self._data)))
+                    f"C++ handle for general type object is not supported, given {type(self._data)}, expect np.ndarray"
+                )
         return self._handle
 
 
@@ -231,9 +229,7 @@ class _LazyTransformDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self._data[idx]
-        if isinstance(item, tuple):
-            return self._fn(*item)
-        return self._fn(item)
+        return self._fn(*item) if isinstance(item, tuple) else self._fn(item)
 
     def __mx_handle__(self):
         if self.handle is None:
@@ -241,7 +237,7 @@ class _LazyTransformDataset(Dataset):
             from ._internal import LazyTransformDataset
             from ...base import numeric_types
             if not hasattr(self._data, '__mx_handle__'):
-                raise NotImplementedError("{} don't support backend".format(self._data))
+                raise NotImplementedError(f"{self._data} don't support backend")
             if isinstance(self._fn, HybridBlock):
                 item = self._data[0]
                 self._fn.hybridize()
@@ -279,9 +275,7 @@ class _TransformFirstClosure(object):
         self._fn = fn
 
     def __call__(self, x, *args):
-        if args:
-            return (self._fn(x),) + args
-        return self._fn(x)
+        return (self._fn(x),) + args if args else self._fn(x)
 
 class _FilteredDataset(Dataset):
     """Dataset with a filter applied"""
@@ -304,7 +298,7 @@ class _FilteredDataset(Dataset):
             elif isinstance(self._dataset, MXDataset):
                 dataset = self._dataset
             else:
-                raise NotImplementedError('{} not supported.'.format(self._dataset))
+                raise NotImplementedError(f'{self._dataset} not supported.')
             self.handle = IndexedDataset(base=dataset,
                                          indices=self._indices)
         return self.handle
@@ -332,7 +326,7 @@ class _SampledDataset(Dataset):
             elif isinstance(self._dataset, MXDataset):
                 dataset = self._dataset
             else:
-                raise NotImplementedError('{} not supported.'.format(self._dataset))
+                raise NotImplementedError(f'{self._dataset} not supported.')
             self.handle = IndexedDataset(base=dataset,
                                          indices=self._indices)
         return self.handle
@@ -350,13 +344,13 @@ class ArrayDataset(Dataset):
         The data arrays.
     """
     def __init__(self, *args):
-        assert len(args) > 0, "Needs at least 1 arrays"
+        assert args, "Needs at least 1 arrays"
         self._length = len(args[0])
         self._data = []
         for i, data in enumerate(args):
             assert len(data) == self._length, \
-                f"All arrays must have the same length; array[0] has length {self._length} " \
-                f"while array[{i+1}] has {len(data)}."
+                    f"All arrays must have the same length; array[0] has length {self._length} " \
+                    f"while array[{i+1}] has {len(data)}."
             if isinstance(data, ndarray.NDArray) and len(data.shape) == 1:
                 data = data.asnumpy()
             self._data.append(data)
@@ -397,7 +391,7 @@ class RecordFileDataset(Dataset):
         Path to rec file.
     """
     def __init__(self, filename):
-        self.idx_file = os.path.splitext(filename)[0] + '.idx'
+        self.idx_file = f'{os.path.splitext(filename)[0]}.idx'
         self.filename = filename
         self._record = recordio.MXIndexedRecordIO(self.idx_file, self.filename, 'r')
 

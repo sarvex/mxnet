@@ -60,20 +60,19 @@ def download(url, fname=None, dirname=None, overwrite=False, retries=5):
         dirname = os.path.dirname(fname)
     else:
         fname = os.path.join(dirname, fname)
-    if dirname != "":
-        if not os.path.exists(dirname):
-            try:
-                logging.info('create directory %s', dirname)
-                os.makedirs(dirname)
-            except OSError as exc:
-                if exc.errno != errno.EEXIST:
-                    raise OSError('failed to create ' + dirname)
+    if dirname != "" and not os.path.exists(dirname):
+        try:
+            logging.info('create directory %s', dirname)
+            os.makedirs(dirname)
+        except OSError as exc:
+            if exc.errno != errno.EEXIST:
+                raise OSError(f'failed to create {dirname}')
 
     if not overwrite and os.path.exists(fname):
         logging.info("%s exists, skipping download", fname)
         return fname
 
-    while retries+1 > 0:
+    while retries > -1:
         # Disable pyling too broad Exception
         # pylint: disable=W0703
         try:
@@ -89,8 +88,9 @@ def download(url, fname=None, dirname=None, overwrite=False, retries=5):
             if retries <= 0:
                 raise e
 
-            print("download failed, retrying, {} attempt{} left"
-                  .format(retries, 's' if retries > 1 else ''))
+            print(
+                f"download failed, retrying, {retries} attempt{'s' if retries > 1 else ''} left"
+            )
     logging.info("downloaded %s into %s successfully", url, fname)
     return fname
 
@@ -113,34 +113,54 @@ def download_model(model_name, dst_dir='./', meta_info=None):
     """
     _base_model_url = 'http://data.mxnet.io/models/'
     _default_model_info = {
-        'imagenet1k-inception-bn': {'symbol':_base_model_url+'imagenet/inception-bn/Inception-BN-symbol.json',
-                                    'params':_base_model_url+'imagenet/inception-bn/Inception-BN-0126.params'},
-        'imagenet1k-resnet-18': {'symbol':_base_model_url+'imagenet/resnet/18-layers/resnet-18-symbol.json',
-                                 'params':_base_model_url+'imagenet/resnet/18-layers/resnet-18-0000.params'},
-        'imagenet1k-resnet-34': {'symbol':_base_model_url+'imagenet/resnet/34-layers/resnet-34-symbol.json',
-                                 'params':_base_model_url+'imagenet/resnet/34-layers/resnet-34-0000.params'},
-        'imagenet1k-resnet-50': {'symbol':_base_model_url+'imagenet/resnet/50-layers/resnet-50-symbol.json',
-                                 'params':_base_model_url+'imagenet/resnet/50-layers/resnet-50-0000.params'},
-        'imagenet1k-resnet-101': {'symbol':_base_model_url+'imagenet/resnet/101-layers/resnet-101-symbol.json',
-                                  'params':_base_model_url+'imagenet/resnet/101-layers/resnet-101-0000.params'},
-        'imagenet1k-resnet-152': {'symbol':_base_model_url+'imagenet/resnet/152-layers/resnet-152-symbol.json',
-                                  'params':_base_model_url+'imagenet/resnet/152-layers/resnet-152-0000.params'},
-        'imagenet1k-resnext-50': {'symbol':_base_model_url+'imagenet/resnext/50-layers/resnext-50-symbol.json',
-                                  'params':_base_model_url+'imagenet/resnext/50-layers/resnext-50-0000.params'},
-        'imagenet1k-resnext-101': {'symbol':_base_model_url+'imagenet/resnext/101-layers/resnext-101-symbol.json',
-                                   'params':_base_model_url+'imagenet/resnext/101-layers/resnext-101-0000.params'},
-        'imagenet1k-resnext-101-64x4d':
-            {'symbol':_base_model_url+'imagenet/resnext/101-layers/resnext-101-64x4d-symbol.json',
-             'params':_base_model_url+'imagenet/resnext/101-layers/resnext-101-64x4d-0000.params'},
-        'imagenet11k-resnet-152':
-            {'symbol':_base_model_url+'imagenet-11k/resnet-152/resnet-152-symbol.json',
-             'params':_base_model_url+'imagenet-11k/resnet-152/resnet-152-0000.params'},
-        'imagenet11k-place365ch-resnet-152':
-            {'symbol':_base_model_url+'imagenet-11k-place365-ch/resnet-152-symbol.json',
-             'params':_base_model_url+'imagenet-11k-place365-ch/resnet-152-0000.params'},
-        'imagenet11k-place365ch-resnet-50':
-            {'symbol':_base_model_url+'imagenet-11k-place365-ch/resnet-50-symbol.json',
-             'params':_base_model_url+'imagenet-11k-place365-ch/resnet-50-0000.params'},
+        'imagenet1k-inception-bn': {
+            'symbol': f'{_base_model_url}imagenet/inception-bn/Inception-BN-symbol.json',
+            'params': f'{_base_model_url}imagenet/inception-bn/Inception-BN-0126.params',
+        },
+        'imagenet1k-resnet-18': {
+            'symbol': f'{_base_model_url}imagenet/resnet/18-layers/resnet-18-symbol.json',
+            'params': f'{_base_model_url}imagenet/resnet/18-layers/resnet-18-0000.params',
+        },
+        'imagenet1k-resnet-34': {
+            'symbol': f'{_base_model_url}imagenet/resnet/34-layers/resnet-34-symbol.json',
+            'params': f'{_base_model_url}imagenet/resnet/34-layers/resnet-34-0000.params',
+        },
+        'imagenet1k-resnet-50': {
+            'symbol': f'{_base_model_url}imagenet/resnet/50-layers/resnet-50-symbol.json',
+            'params': f'{_base_model_url}imagenet/resnet/50-layers/resnet-50-0000.params',
+        },
+        'imagenet1k-resnet-101': {
+            'symbol': f'{_base_model_url}imagenet/resnet/101-layers/resnet-101-symbol.json',
+            'params': f'{_base_model_url}imagenet/resnet/101-layers/resnet-101-0000.params',
+        },
+        'imagenet1k-resnet-152': {
+            'symbol': f'{_base_model_url}imagenet/resnet/152-layers/resnet-152-symbol.json',
+            'params': f'{_base_model_url}imagenet/resnet/152-layers/resnet-152-0000.params',
+        },
+        'imagenet1k-resnext-50': {
+            'symbol': f'{_base_model_url}imagenet/resnext/50-layers/resnext-50-symbol.json',
+            'params': f'{_base_model_url}imagenet/resnext/50-layers/resnext-50-0000.params',
+        },
+        'imagenet1k-resnext-101': {
+            'symbol': f'{_base_model_url}imagenet/resnext/101-layers/resnext-101-symbol.json',
+            'params': f'{_base_model_url}imagenet/resnext/101-layers/resnext-101-0000.params',
+        },
+        'imagenet1k-resnext-101-64x4d': {
+            'symbol': f'{_base_model_url}imagenet/resnext/101-layers/resnext-101-64x4d-symbol.json',
+            'params': f'{_base_model_url}imagenet/resnext/101-layers/resnext-101-64x4d-0000.params',
+        },
+        'imagenet11k-resnet-152': {
+            'symbol': f'{_base_model_url}imagenet-11k/resnet-152/resnet-152-symbol.json',
+            'params': f'{_base_model_url}imagenet-11k/resnet-152/resnet-152-0000.params',
+        },
+        'imagenet11k-place365ch-resnet-152': {
+            'symbol': f'{_base_model_url}imagenet-11k-place365-ch/resnet-152-symbol.json',
+            'params': f'{_base_model_url}imagenet-11k-place365-ch/resnet-152-0000.params',
+        },
+        'imagenet11k-place365ch-resnet-50': {
+            'symbol': f'{_base_model_url}imagenet-11k-place365-ch/resnet-50-symbol.json',
+            'params': f'{_base_model_url}imagenet-11k-place365-ch/resnet-50-0000.params',
+        },
     }
 
 
@@ -154,10 +174,10 @@ def download_model(model_name, dst_dir='./', meta_info=None):
     meta = dict(meta_info[model_name])
     assert 'symbol' in meta, "missing symbol url"
     model_name = os.path.join(dst_dir, model_name)
-    download(meta['symbol'], model_name+'-symbol.json')
+    download(meta['symbol'], f'{model_name}-symbol.json')
     assert 'params' in meta, "mssing parameter file url"
-    download(meta['params'], model_name+'-0000.params')
-    download(_base_model_url + 'imagenet/synset.txt')
+    download(meta['params'], f'{model_name}-0000.params')
+    download(f'{_base_model_url}imagenet/synset.txt')
     return (model_name, 0)
 
 def main():

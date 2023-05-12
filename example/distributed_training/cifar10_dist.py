@@ -124,8 +124,7 @@ def evaluate_accuracy(data_iterator, network):
     acc = mx.gluon.metric.Accuracy()
 
     # Iterate through data and label
-    for i, (data, label) in enumerate(data_iterator):
-
+    for data, label in data_iterator:
         # Get the data and label into the GPU
         data = data.as_in_context(ctx[0])
         label = label.as_in_context(ctx[0])
@@ -193,14 +192,10 @@ def train_batch(batch_list, context, network, gluon_trainer):
 # Run as many epochs as required
 for epoch in range(epochs):
 
-    # Iterate through batches and run training using multiple GPUs
-    batch_num = 1
-    for batch in train_data:
+    for batch_num, batch in enumerate(train_data, start=1):
 
         # Train the batch using multiple GPUs
         train_batch(batch, ctx, net, trainer)
-
-        batch_num += 1
 
     # Print test accuracy after every epoch
     test_accuracy = evaluate_accuracy(test_data, net)

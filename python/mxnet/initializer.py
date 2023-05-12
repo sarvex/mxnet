@@ -134,41 +134,36 @@ class Initializer(object):
 
         if desc.global_init is None:
             desc.global_init = self
-        init = desc.attrs.get('__init__', "")
-
-        if init:
+        if init := desc.attrs.get('__init__', ""):
             # when calling Variable initializer
             create(init)._init_weight(desc, arr)
             self._verbose_print(desc, init, arr)
+        elif desc.endswith('weight'):
+            self._init_weight(desc, arr)
+            self._verbose_print(desc, 'weight', arr)
+        elif desc.endswith('bias'):
+            self._init_bias(desc, arr)
+            self._verbose_print(desc, 'bias', arr)
+        elif desc.endswith('gamma'):
+            self._init_gamma(desc, arr)
+            self._verbose_print(desc, 'gamma', arr)
+        elif desc.endswith('beta'):
+            self._init_beta(desc, arr)
+            self._verbose_print(desc, 'beta', arr)
+        elif desc.endswith('min'):
+            self._init_zero(desc, arr)
+            self._verbose_print(desc, 'min', arr)
+        elif desc.endswith('max'):
+            self._init_one(desc, arr)
+            self._verbose_print(desc, 'max', arr)
+        elif desc.endswith('weight_quantize'):
+            self._init_quantized_weight(desc, arr)
+            self._verbose_print(desc, 'weight_quantize', arr)
+        elif desc.endswith('bias_quantize'):
+            self._init_quantized_bias(desc, arr)
+            self._verbose_print(desc, 'bias_quantize', arr)
         else:
-            # register nnvm::FSetInputVariableAttrs in the backend for new patterns
-            # don't add new cases here.
-            if desc.endswith('weight'):
-                self._init_weight(desc, arr)
-                self._verbose_print(desc, 'weight', arr)
-            elif desc.endswith('bias'):
-                self._init_bias(desc, arr)
-                self._verbose_print(desc, 'bias', arr)
-            elif desc.endswith('gamma'):
-                self._init_gamma(desc, arr)
-                self._verbose_print(desc, 'gamma', arr)
-            elif desc.endswith('beta'):
-                self._init_beta(desc, arr)
-                self._verbose_print(desc, 'beta', arr)
-            elif desc.endswith('min'):
-                self._init_zero(desc, arr)
-                self._verbose_print(desc, 'min', arr)
-            elif desc.endswith('max'):
-                self._init_one(desc, arr)
-                self._verbose_print(desc, 'max', arr)
-            elif desc.endswith('weight_quantize'):
-                self._init_quantized_weight(desc, arr)
-                self._verbose_print(desc, 'weight_quantize', arr)
-            elif desc.endswith('bias_quantize'):
-                self._init_quantized_bias(desc, arr)
-                self._verbose_print(desc, 'bias_quantize', arr)
-            else:
-                self._init_default(desc, arr)
+            self._init_default(desc, arr)
 
     def _legacy_init(self, name, arr):
         """Legacy initialization method.
@@ -572,10 +567,7 @@ class Orthogonal(Initializer):
         elif self.rand_type == "normal":
             tmp = random.normal(0.0, 1.0, shape=(nout, nin)).asnumpy()
         u, _, v = np.linalg.svd(tmp, full_matrices=False) # pylint: disable=invalid-name
-        if u.shape == tmp.shape:
-            res = u
-        else:
-            res = v
+        res = u if u.shape == tmp.shape else v
         res = self.scale * res.reshape(arr.shape)
         arr[:] = res
 
@@ -621,12 +613,10 @@ class Xavier(Initializer):
 
     def _init_weight(self, name, arr):
         shape = arr.shape
-        hw_scale = 1.
         if len(shape) < 2:
             raise ValueError('Xavier initializer cannot be applied to vector {0}. It requires at'
                              ' least 2D.'.format(name))
-        if len(shape) > 2:
-            hw_scale = np.prod(shape[2:])
+        hw_scale = np.prod(shape[2:]) if len(shape) > 2 else 1.
         fan_in, fan_out = shape[1] * hw_scale, shape[0] * hw_scale
         factor = 1.
         if self.factor_type == "avg":
@@ -766,13 +756,13 @@ class RNNFused(Initializer):
             # second layer size
             size2 = (self.num_hidden * self.dir + self.num_hidden + 2) * size
             input_size = (arr_len - (self.num_layers - 1) * size2) // \
-                size - 2 - self.num_hidden
+                    size - 2 - self.num_hidden
         else:
             # second layer size
             size2 = (self.projection_size * self.dir + self.projection_size + 2) * size
             size_projection = self.projection_size * self.num_hidden * self.num_layers * self.dir
             input_size = (arr_len - size_projection - (self.num_layers - 1) * size2) // \
-                size - 2 - self.projection_size
+                    size - 2 - self.projection_size
         begin = 0
         if not self.projection_size:
             for param in ['weight', 'bias']:
@@ -785,10 +775,7 @@ class RNNFused(Initializer):
                             if connect == 'h2h':
                                 num_inputs = self.num_hidden
                             shape0 = self.gates * self.num_hidden
-                            if param == 'weight':
-                                cur_len = shape0 * num_inputs
-                            else:
-                                cur_len = shape0
+                            cur_len = shape0 * num_inputs if param == 'weight' else shape0
                             self._init_util(param, connect, arr[begin:begin+cur_len])
                             begin += cur_len
         else:
@@ -806,15 +793,12 @@ class RNNFused(Initializer):
                                     if connect == 'h2h':
                                         num_inputs = self.projection_size
                                     shape0 = self.gates * self.num_hidden
-                                    if param == 'weight':
-                                        cur_len = shape0 * num_inputs
-                                    else:
-                                        cur_len = shape0
+                                    cur_len = shape0 * num_inputs if param == 'weight' else shape0
                                 self._init_util(param, connect, arr[begin:begin+cur_len])
                                 begin += cur_len
 
     def _init_util(self, param, connect, arr):
-        name = "_{}_{}_initializer".format(connect, param)
+        name = f"_{connect}_{param}_initializer"
         init = getattr(self, name)
         create(init)(InitDesc(name, {'__init__': init}), arr)
 

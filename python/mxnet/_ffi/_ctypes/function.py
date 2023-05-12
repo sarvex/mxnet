@@ -121,9 +121,12 @@ class FunctionBase(object):
         self.is_global = is_global
 
     def __del__(self):
-        if not self.is_global and _LIB is not None:
-            if _LIB.MXNetFuncFree(self.handle) != 0:
-                raise get_last_ffi_error()
+        if (
+            not self.is_global
+            and _LIB is not None
+            and _LIB.MXNetFuncFree(self.handle) != 0
+        ):
+            raise get_last_ffi_error()
 
     def __call__(self, *args):
         """Call the function with positional arguments

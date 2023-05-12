@@ -96,25 +96,22 @@ def under_ci() -> bool:
 
 def ec2_instance_info() -> str:
     import requests
+    if not under_ci():
+        return ''
+    result = []
     urls = [
             "http://instance-data/latest/meta-data/instance-type",
             "http://instance-data/latest/meta-data/instance-id",
             "http://instance-data/latest/meta-data/public-hostname",
             "http://instance-data/latest/meta-data/ami-id"
     ]
-    if under_ci():
-        result = []
-        try:
-            for url in urls:
-                r = requests.get(url)
-                if r.status_code == 200:
-                    result.append(r.content.decode())
-            return ' '.join(result)
-        except ConnectionError:
-            pass
-        return '?'
-    else:
-        return ''
+    with contextlib.suppress(ConnectionError):
+        for url in urls:
+            r = requests.get(url)
+            if r.status_code == 200:
+                result.append(r.content.decode())
+        return ' '.join(result)
+    return '?'
 
 
 def chdir_to_script_directory():
@@ -142,13 +139,13 @@ def config_logging():
 # Takes url and downloads it to the dest_path directory on Windows.
 def download_file(url, dest_path):
     file_name = url.split('/')[-1]
-    full_path = "{}\\{}".format(dest_path, file_name)
-    logging.info("Downloading: {}".format(full_path))
+    full_path = f"{dest_path}\\{file_name}"
+    logging.info(f"Downloading: {full_path}")
     r = requests.get(url, stream=True)
     if r.status_code == 404:
         return r.status_code
     elif r.status_code != 200:
-        logging.error("{} returned status code {}".format(url, r.status_code))
+        logging.error(f"{url} returned status code {r.status_code}")
     with open(full_path, 'wb') as f:
         for chunk in r.iter_content(chunk_size=1024):
             if chunk: # filter out keep-alive new chunks
@@ -159,9 +156,11 @@ def download_file(url, dest_path):
 # Takes arguments and runs command on host.  Shell is disabled by default.
 def run_command(args, shell=False):
     try:
-        logging.info("Issuing command: {}".format(args))
+        logging.info(f"Issuing command: {args}")
         res = subprocess.check_output(args, shell=shell, timeout=1800).decode("utf-8").replace("\r\n", "")
-        logging.info("Output: {}".format(res))
+        logging.info(f"Output: {res}")
     except subprocess.CalledProcessError as e:
-        raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
+        raise RuntimeError(
+            f"command '{e.cmd}' return with error (code {e.returncode}): {e.output}"
+        )
     return res

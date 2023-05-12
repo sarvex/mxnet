@@ -59,7 +59,7 @@ _bin_logic_gpu_attrs = {
 
 def _binary_logic_cpu(compute_func, op, itype, ndim):
     s, a, b, c = compute_func(op, itype, ndim)
-    axes = [axis for axis in c.op.axis]
+    axes = list(c.op.axis)
     fused = s[c].fuse(*axes)
     s[c].parallel(fused)
     return s, [a, b, c]
@@ -67,7 +67,7 @@ def _binary_logic_cpu(compute_func, op, itype, ndim):
 
 def _binary_logic_gpu(compute_func, op, itype, ndim):
     s, a, b, c = compute_func(op, itype, ndim)
-    axes = [axis for axis in c.op.axis]
+    axes = list(c.op.axis)
     fused = s[c].fuse(*axes)
     bx, tx = s[c].split(fused, factor=64)
     s[c].bind(bx, tvm.te.thread_axis('blockIdx.x'))
@@ -77,8 +77,12 @@ def _binary_logic_gpu(compute_func, op, itype, ndim):
 
 # register binary element-wise logic ops with broadcasting supported
 for op_name in _bin_logic_op_map.keys():
-    defop(name='{}_cpu'.format(op_name), op=op_name, **_bin_logic_cpu_attrs)(_binary_logic_cpu)
-    defop(name='{}_gpu'.format(op_name), op=op_name, **_bin_logic_gpu_attrs)(_binary_logic_gpu)
+    defop(name=f'{op_name}_cpu', op=op_name, **_bin_logic_cpu_attrs)(
+        _binary_logic_cpu
+    )
+    defop(name=f'{op_name}_gpu', op=op_name, **_bin_logic_gpu_attrs)(
+        _binary_logic_gpu
+    )
 
 
 # Note that `b.dtype` is hard-coded as 'float64'.
@@ -122,7 +126,9 @@ _bin_scalar_logic_gpu_attrs = {
 
 # register binary element-wise scalar logic ops
 for op_name in _bin_scalar_logic_op_map.keys():
-    defop(name='{}_cpu'.format(op_name), op=op_name,
-          **_bin_scalar_logic_cpu_attrs)(_binary_logic_cpu)
-    defop(name='{}_gpu'.format(op_name), op=op_name,
-          **_bin_scalar_logic_gpu_attrs)(_binary_logic_gpu)
+    defop(name=f'{op_name}_cpu', op=op_name, **_bin_scalar_logic_cpu_attrs)(
+        _binary_logic_cpu
+    )
+    defop(name=f'{op_name}_gpu', op=op_name, **_bin_scalar_logic_gpu_attrs)(
+        _binary_logic_gpu
+    )

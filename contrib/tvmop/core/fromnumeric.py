@@ -38,7 +38,7 @@ def _sum_cpu(itype, otype, ndim, reduce1st_dim, req):
     s, a, output_placeholder, final_output, tensor_list = _compute_sum(
         itype, otype, ndim, reduce1st_dim, req)
     for t in tensor_list:
-        axes = [axis for axis in t.op.axis]
+        axes = list(t.op.axis)
         fused = s[t].fuse(*axes)
         s[t].parallel(fused)
     return s, [a, output_placeholder, final_output]
@@ -55,7 +55,7 @@ def _sum_gpu(itype, otype, ndim, reduce1st_dim, req):
     for t in tensor_list:
         block_x = tvm.te.thread_axis("blockIdx.x")
         thread_x = tvm.te.thread_axis("threadIdx.x")
-        axes = [axis for axis in t.op.axis]
+        axes = list(t.op.axis)
         fused = s[t].fuse(*axes)
         bx, tx = s[t].split(fused, factor=num_threads)
         s[t].bind(bx, block_x)

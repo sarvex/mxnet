@@ -33,7 +33,7 @@ def run_imageiter(path_rec, n, batch_size=32):
                             rand_mirror=True)
     data.reset()
     tic = time.time()
-    for i in range(n):
+    for _ in range(n):
         data.next()
     mx.nd.waitall()
     print(batch_size*n/(time.time() - tic))

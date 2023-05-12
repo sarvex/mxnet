@@ -64,10 +64,14 @@ def set_config(**kwargs):
     """
     kk = kwargs.keys()
     vv = kwargs.values()
-    check_call(_LIB.MXSetProcessProfilerConfig(len(kwargs),
-                                               c_str_array([key for key in kk]),
-                                               c_str_array([str(val) for val in vv]),
-                                               profiler_kvstore_handle))
+    check_call(
+        _LIB.MXSetProcessProfilerConfig(
+            len(kwargs),
+            c_str_array(list(kk)),
+            c_str_array([str(val) for val in vv]),
+            profiler_kvstore_handle,
+        )
+    )
 
 
 def profiler_set_config(mode='symbolic', filename='profile.json'):
@@ -83,7 +87,7 @@ def profiler_set_config(mode='symbolic', filename='profile.json'):
     """
     warnings.warn('profiler.profiler_set_config() is deprecated. '
                   'Please use profiler.set_config() instead')
-    keys = c_str_array([key for key in ["profile_" + mode, "filename"]])
+    keys = c_str_array([f"profile_{mode}", "filename"])
     values = c_str_array([str(val) for val in [True, filename]])
     assert len(keys) == len(values)
     check_call(_LIB.MXSetProcessProfilerConfig(len(keys), keys, values, profiler_kvstore_handle))
@@ -175,16 +179,27 @@ def dumps(reset=False, format='table', sort_by='total', ascending=False):
     format_to_int = {'table': 0, 'json': 1}
     sort_by_to_int = {'total': 0, 'avg': 1, 'min': 2, 'max': 3, 'count': 4}
     asc_to_int = {False: 0, True: 1}
-    assert format in format_to_int.keys(),\
-            "Invalid value provided for format: {0}. Support: 'table', 'json'".format(format)
-    assert sort_by in sort_by_to_int.keys(),\
-            "Invalid value provided for sort_by: {0}.\
-             Support: 'total', 'avg', 'min', 'max', 'count'"\
-            .format(sort_by)
-    assert  ascending in asc_to_int.keys(),\
-            "Invalid value provided for ascending: {0}. Support: False, True".format(ascending)
-    assert  reset in reset_to_int.keys(),\
-            "Invalid value provided for reset: {0}. Support: False, True".format(reset)
+    assert (
+        format in format_to_int
+    ), "Invalid value provided for format: {0}. Support: 'table', 'json'".format(
+        format
+    )
+    assert (
+        sort_by in sort_by_to_int
+    ), "Invalid value provided for sort_by: {0}.\
+             Support: 'total', 'avg', 'min', 'max', 'count'".format(
+        sort_by
+    )
+    assert (
+        ascending in asc_to_int
+    ), "Invalid value provided for ascending: {0}. Support: False, True".format(
+        ascending
+    )
+    assert (
+        reset in reset_to_int
+    ), "Invalid value provided for reset: {0}. Support: False, True".format(
+        reset
+    )
     check_call(_LIB.MXAggregateProfileStatsPrint(ctypes.byref(debug_str),
                                                  reset_to_int[reset],
                                                  format_to_int[format],
@@ -204,9 +219,11 @@ def pause(profile_process='worker'):
         if this is not passed, defaults to `worker`
     """
     profile_process2int = {'worker': 0, 'server': 1}
-    check_call(_LIB.MXProcessProfilePause(int(1),
-                                          profile_process2int[profile_process],
-                                          profiler_kvstore_handle))
+    check_call(
+        _LIB.MXProcessProfilePause(
+            1, profile_process2int[profile_process], profiler_kvstore_handle
+        )
+    )
 
 
 def resume(profile_process='worker'):
@@ -220,9 +237,11 @@ def resume(profile_process='worker'):
         if this is not passed, defaults to `worker`
     """
     profile_process2int = {'worker': 0, 'server': 1}
-    check_call(_LIB.MXProcessProfilePause(int(0),
-                                          profile_process2int[profile_process],
-                                          profiler_kvstore_handle))
+    check_call(
+        _LIB.MXProcessProfilePause(
+            0, profile_process2int[profile_process], profiler_kvstore_handle
+        )
+    )
 
 
 class Domain(object):
@@ -515,7 +534,7 @@ def scope(name='<unk>:', append_mode=True):
     append_mode : Whether to append the old profiler scope at the front.
 
     """
-    name = name + ":" if not name.endswith(":") else name
+    name = f"{name}:" if not name.endswith(":") else name
     if append_mode and _current_scope.get() != "<unk>:":
         name = _current_scope.get() + name
     token = _current_scope.set(name)

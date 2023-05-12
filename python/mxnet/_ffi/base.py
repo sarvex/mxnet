@@ -19,6 +19,7 @@
 """Base library for MXNet FFI.
 Acknowledgement: This file originates from incubator-tvm
 """
+
 import sys
 import ctypes
 import numpy as np
@@ -29,7 +30,7 @@ numeric_types = integer_types + (float, np.float32)
 # this function is needed for python3
 # to convert ctypes.char_p .value back to python str
 if sys.platform == "win32":
-    encoding = 'cp' + str(ctypes.cdll.kernel32.GetACP())
+    encoding = f'cp{str(ctypes.cdll.kernel32.GetACP())}'
     py_str = lambda x: x.decode(encoding)
 else:
     py_str = lambda x: x.decode('utf-8')

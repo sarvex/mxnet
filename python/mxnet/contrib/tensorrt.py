@@ -32,7 +32,7 @@ def get_use_fp16():
     Get an environment variable which describes if TensorRT is currently running in FP16
     :return: Boolean, true if TensorRT is running in FP16, False for FP32
     """
-    return bool(int(os.environ.get("MXNET_TENSORRT_USE_FP16", 1)) == 1)
+    return int(os.environ.get("MXNET_TENSORRT_USE_FP16", 1)) == 1
 
 def init_tensorrt_params(sym, arg_params, aux_params):
     """
@@ -45,23 +45,22 @@ def init_tensorrt_params(sym, arg_params, aux_params):
     arg_params = arg_params.copy()
     aux_params = aux_params.copy()
     for s in sym.get_internals():
-        new_params_names = ""
-        tensorrt_params = {}
         if 'subgraph_params_names' in s.list_attr():
             keys = s.list_attr()['subgraph_params_names'].split(';')
+            new_params_names = ""
+            tensorrt_params = {}
             for k in keys:
                 if k in arg_params:
-                    new_params_names += k + ";"
-                    tensorrt_params['subgraph_param_' + k] = arg_params[k]
+                    new_params_names += f"{k};"
+                    tensorrt_params[f'subgraph_param_{k}'] = arg_params[k]
                     arg_params.pop(k)
                 elif k in aux_params:
-                    new_params_names += k + ";"
-                    tensorrt_params['subgraph_param_' + k] = aux_params[k]
+                    new_params_names += f"{k};"
+                    tensorrt_params[f'subgraph_param_{k}'] = aux_params[k]
                     aux_params.pop(k)
-            new_attrs = {}
-            for k, v in tensorrt_params.items():
-                new_attrs[k] = str(v.handle.value)
-            if len(new_attrs) > 0:
+            if new_attrs := {
+                k: str(v.handle.value) for k, v in tensorrt_params.items()
+            }:
                 s._set_attr(**new_attrs)
                 s._set_attr(subgraph_params_names=new_params_names[:-1])
     return arg_params, aux_params

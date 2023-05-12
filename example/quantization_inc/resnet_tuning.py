@@ -100,8 +100,7 @@ def eval_func(model):
   for x, label in val_data:
     output = model(x)
     metric.update(label, output)
-  accuracy = metric.get()[1]
-  return accuracy
+  return metric.get()[1]
 
 from neural_compressor.experimental import Quantization
 quantizer = Quantization("resnet50v2_mse.yaml")
@@ -113,4 +112,4 @@ for strategy in ['basic', 'mse', 'mycustom', 'bayesian']:
   start = time.time()
   qnet_inc = quantizer.fit().model
   time_consumed = time.time() - start
-  save_model(qnet_inc, val_data, "INC " + strategy, time_consumed)
+  save_model(qnet_inc, val_data, f"INC {strategy}", time_consumed)

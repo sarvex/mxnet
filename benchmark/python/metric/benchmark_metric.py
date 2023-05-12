@@ -108,9 +108,7 @@ def test_metric_performance():
         f"{'Metric':15}{'Data-Ctx':10}{'Label-Ctx':12}{'Data Size':12}{'Batch Size':15}{'Output Dim':15}{'Elapsed Time'}",
         file=sys.stderr)
     print(f"{'':-^90}", file=sys.stderr)
-    for k, v in metrics:
-        for c in output_dims:
-            for n in batch_sizes:
-                for pred_ctx, label_ctx in itertools.product(ctxs, ctxs):
-                    run_metric(k, v[1], (data_size * 128), (n * c), n, c, pred_ctx, label_ctx, **v[0])
-                print(f"{'':-^90}", file=sys.stderr)
+    for (k, v), c, n in itertools.product(metrics, output_dims, batch_sizes):
+        for pred_ctx, label_ctx in itertools.product(ctxs, ctxs):
+            run_metric(k, v[1], (data_size * 128), (n * c), n, c, pred_ctx, label_ctx, **v[0])
+        print(f"{'':-^90}", file=sys.stderr)

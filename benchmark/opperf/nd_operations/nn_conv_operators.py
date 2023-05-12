@@ -145,9 +145,9 @@ def run_pooling_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='na
                                                                      ],
                                                               warmup=warmup,
                                                               runs=runs)
-    # Prepare combined results
-    mx_pooling_op_results = merge_map_list(pool1d_benchmark_res + pool2d_benchmark_res + roipool_benchmark_res)
-    return mx_pooling_op_results
+    return merge_map_list(
+        pool1d_benchmark_res + pool2d_benchmark_res + roipool_benchmark_res
+    )
 
 
 def run_convolution_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='native', int64_tensor='off', warmup=25, runs=100):
@@ -241,9 +241,7 @@ def run_convolution_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler
                                                               "layout": 'NCHW'}],
                                                      warmup=warmup,
                                                      runs=runs)
-    # Prepare combined results
-    mx_conv_op_results = merge_map_list(conv1d_benchmark_res + conv2d_benchmark_res)
-    return mx_conv_op_results
+    return merge_map_list(conv1d_benchmark_res + conv2d_benchmark_res)
 
 
 def run_transpose_convolution_operators_benchmarks(ctx=mx.cpu(), profiler='native', int64_tensor='off', dtype='float32', warmup=25, runs=100):
@@ -338,6 +336,6 @@ def run_transpose_convolution_operators_benchmarks(ctx=mx.cpu(), profiler='nativ
                                                                             "layout": 'NCHW'}],
                                                                    warmup=warmup,
                                                                    runs=runs)
-    # Prepare combined results
-    mx_transpose_conv_op_results = merge_map_list(conv1d_transpose_benchmark_res + conv2d_transpose_benchmark_res)
-    return mx_transpose_conv_op_results
+    return merge_map_list(
+        conv1d_transpose_benchmark_res + conv2d_transpose_benchmark_res
+    )

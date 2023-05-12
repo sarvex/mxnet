@@ -995,7 +995,7 @@ def register(reg_name):
                         try:
                             tensors = [[] for i in range(5)]
                             for i in range(num_ndarray):
-                                if tags[i] == 1 or tags[i] == 4:
+                                if tags[i] in [1, 4]:
                                     tensors[tags[i]].append(
                                         create_ndarray_fn(cast(ndarraies[i], NDArrayHandle), writable=True)
                                     )
@@ -1031,7 +1031,7 @@ def register(reg_name):
                                     # backward dependency it is empty and thus the ndarray should
                                     # be set to default
                                     stype = _STORAGE_TYPE_DEFAULT
-                                if tags[i] == 2 or tags[i] == 4:
+                                if tags[i] in [2, 4]:
                                     tensors[tags[i]].append(
                                         create_ndarray_fn(cast(ndarraies[i], NDArrayHandle),
                                                           writable=True, stype=stype)
@@ -1119,6 +1119,7 @@ def register(reg_name):
         cur = _registry.inc()
         _registry.ref_holder[cur] = creator_func
         return prop_cls
+
     return do_register
 
 
@@ -1138,8 +1139,7 @@ def get_all_registered_operators():
     check_call(_LIB.MXListAllOpNames(ctypes.byref(size),
                                      ctypes.byref(plist)))
 
-    mx_registered_operator_names = [py_str(plist[i]) for i in range(size.value)]
-    return mx_registered_operator_names
+    return [py_str(plist[i]) for i in range(size.value)]
 
 
 def get_all_registered_operators_grouped():

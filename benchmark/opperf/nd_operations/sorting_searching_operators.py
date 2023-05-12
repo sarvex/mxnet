@@ -55,6 +55,6 @@ def run_sorting_searching_operators_benchmarks(ctx=mx.cpu(), dtype='float32', pr
     """
     # Fetch all Random Sampling Operators
     mx_sort_search_ops = get_all_sorting_searching_operators()
-    # Run benchmarks
-    mx_sort_search_op_results = run_op_benchmarks(mx_sort_search_ops, dtype, ctx, profiler, int64_tensor, warmup, runs)
-    return mx_sort_search_op_results
+    return run_op_benchmarks(
+        mx_sort_search_ops, dtype, ctx, profiler, int64_tensor, warmup, runs
+    )

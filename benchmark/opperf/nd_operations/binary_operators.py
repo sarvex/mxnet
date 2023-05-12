@@ -64,9 +64,9 @@ def run_mx_binary_misc_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profi
     """
     # Fetch all Miscellaneous Binary Operators
     mx_binary_misc_ops = get_all_misc_binary_operators()
-    # Run benchmarks
-    mx_binary_op_results = run_op_benchmarks(mx_binary_misc_ops, dtype, ctx, profiler, int64_tensor, warmup, runs)
-    return mx_binary_op_results
+    return run_op_benchmarks(
+        mx_binary_misc_ops, dtype, ctx, profiler, int64_tensor, warmup, runs
+    )
 
 
 def run_mx_binary_broadcast_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='native', int64_tensor='off', warmup=25, runs=100):
@@ -95,9 +95,15 @@ def run_mx_binary_broadcast_operators_benchmarks(ctx=mx.cpu(), dtype='float32', 
     """
     # Fetch all Binary Broadcast Operators
     mx_binary_broadcast_ops = get_all_broadcast_binary_operators()
-    # Run benchmarks
-    mx_binary_op_results = run_op_benchmarks(mx_binary_broadcast_ops, dtype, ctx, profiler, int64_tensor, warmup, runs)
-    return mx_binary_op_results
+    return run_op_benchmarks(
+        mx_binary_broadcast_ops,
+        dtype,
+        ctx,
+        profiler,
+        int64_tensor,
+        warmup,
+        runs,
+    )
 
 
 def run_mx_binary_element_wise_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='native', int64_tensor='off', warmup=25, runs=100):
@@ -126,6 +132,12 @@ def run_mx_binary_element_wise_operators_benchmarks(ctx=mx.cpu(), dtype='float32
     """
     # Fetch all Binary Element_wise Operators
     mx_binary_element_wise_ops = get_all_elemen_wise_binary_operators()
-    # Run benchmarks
-    mx_binary_op_results = run_op_benchmarks(mx_binary_element_wise_ops, dtype, ctx, profiler, int64_tensor, warmup, runs)
-    return mx_binary_op_results
+    return run_op_benchmarks(
+        mx_binary_element_wise_ops,
+        dtype,
+        ctx,
+        profiler,
+        int64_tensor,
+        warmup,
+        runs,
+    )

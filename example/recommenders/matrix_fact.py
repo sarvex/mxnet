@@ -46,13 +46,11 @@ def train(network, train_data, test_data, epochs, learning_rate=0.01, optimizer=
     schedule = mx.lr_scheduler.FactorScheduler(step=len(train_data)*len(ctx)*num_epoch_lr, factor=factor)
 
     trainer = gluon.Trainer(network.collect_params(), optimizer,
-                            {'learning_rate':learning_rate, 'wd':0.0001, 'lr_scheduler':schedule})  
-                            #update_on_kvstore=False)
-
+                            {'learning_rate':learning_rate, 'wd':0.0001, 'lr_scheduler':schedule})
     l2 = gluon.loss.L2Loss()
 
     network.hybridize()
-    
+
     losses_output = []
     for e in range(epochs):
         loss_acc = 0.
@@ -67,7 +65,7 @@ def train(network, train_data, test_data, epochs, learning_rate=0.01, optimizer=
                 losses = [l2(p, s) for p, s in zip(preds, scores_)]
 
             [l.backward() for l in losses]
-            loss_acc += sum([l.asnumpy() for l in losses]).mean()/len(ctx)
+            loss_acc += sum(l.asnumpy() for l in losses).mean() / len(ctx)
             trainer.update(users.shape[0])
 
         test_loss = evaluate_network(network, test_data, ctx)

@@ -118,10 +118,7 @@ class _Conv(HybridBlock):
         else:
             self.bias = None
 
-        if activation is not None:
-            self.act = Activation(activation)
-        else:
-            self.act = None
+        self.act = Activation(activation) if activation is not None else None
 
     def forward(self, x):
         device = x.device
@@ -143,22 +140,20 @@ class _Conv(HybridBlock):
             if len(self._kernel_size) == 1:
                 wshape[self._layout.find('N')] = self._channels // self._groups
                 wshape[self._layout.find('W')] = self._kernel_size[0]
-                wshape[0] *= self._groups
             elif len(self._kernel_size) == 2:
                 wshape[self._layout.find('N')] = self._channels // self._groups
                 wshape[self._layout.find('H')] = self._kernel_size[0]
                 wshape[self._layout.find('W')] = self._kernel_size[1]
-                wshape[0] *= self._groups
             else:
                 assert len(self._kernel_size) == 3, "kernel_size must be 1, 2 or 3"
                 wshape[self._layout.find('N')] = self._channels // self._groups
                 wshape[self._layout.find('D')] = self._kernel_size[0]
                 wshape[self._layout.find('H')] = self._kernel_size[1]
                 wshape[self._layout.find('W')] = self._kernel_size[2]
-                wshape[0] *= self._groups
+            wshape[0] *= self._groups
         else:
             assert self._op_name == "deconvolution", \
-                "Only support operator name with convolution and deconvolution"
+                    "Only support operator name with convolution and deconvolution"
             if len(self._kernel_size) == 1:
                 wshape[self._layout.find('C')] = self._channels // self._groups
                 wshape[self._layout.find('W')] = self._kernel_size[0]
@@ -177,13 +172,12 @@ class _Conv(HybridBlock):
     def infer_shape(self, x):
         dshape1 = x.shape[self._layout.find('C')]
         wshape = self.weight.shape
+        wshape_list = list(wshape)
         if self._op_name == "convolution":
-            wshape_list = list(wshape)
             wshape_list[self._layout.find('C')] = dshape1 // self._groups
         else:
             assert self._op_name == "deconvolution", \
-                "Only support operator name with convolution and deconvolution"
-            wshape_list = list(wshape)
+                    "Only support operator name with convolution and deconvolution"
             wshape_list[self._layout.find('N')] = dshape1
         self.weight.shape = tuple(wshape_list)
 
@@ -204,7 +198,7 @@ class _Conv(HybridBlock):
         if self.bias is None:
             s += ', bias=False'
         if self.act:
-            s += ', {}'.format(self.act)
+            s += f', {self.act}'
         s += ')'
         shape = self.weight.shape
         if 'Transpose' in self.__class__.__name__:
@@ -760,8 +754,10 @@ class _Pooling(HybridBlock):
         return npx.pooling(x, name='fwd', **self._kwargs)
 
     def __repr__(self):
-        s = '{name}(size={kernel}, stride={stride}, padding={pad}, ceil_mode={ceil_mode}'
-        s += ', global_pool={global_pool}, pool_type={pool_type}, layout={layout})'
+        s = (
+            '{name}(size={kernel}, stride={stride}, padding={pad}, ceil_mode={ceil_mode}'
+            + ', global_pool={global_pool}, pool_type={pool_type}, layout={layout})'
+        )
         return s.format(name=self.__class__.__name__,
                         ceil_mode=self._kwargs['pooling_convention'] == 'full',
                         **self._kwargs)
@@ -1410,10 +1406,7 @@ class DeformableConvolution(HybridBlock):
         else:
             self.deformable_conv_bias = None
 
-        if activation:
-            self.act = Activation(activation)
-        else:
-            self.act = None
+        self.act = Activation(activation) if activation else None
 
     def forward(self, x):
         device = x.device
@@ -1489,7 +1482,7 @@ class DeformableConvolution(HybridBlock):
         if self.deformable_conv_bias is None:
             s += ', bias=False'
         if self.act:
-            s += ', {}'.format(self.act)
+            s += f', {self.act}'
         s += ')'
         shape = self.deformable_conv_weight.shape
         return s.format(name=self.__class__.__name__,
@@ -1633,10 +1626,7 @@ class ModulatedDeformableConvolution(HybridBlock):
         else:
             self.offset_bias = None
 
-        if activation:
-            self.act = Activation(activation)
-        else:
-            self.act = None
+        self.act = Activation(activation) if activation else None
 
     def forward(self, x):
         device = x.device
@@ -1748,7 +1738,7 @@ class PixelShuffle1D(HybridBlock):
         return x
 
     def __repr__(self):
-        return "{}({})".format(self.__class__.__name__, self._factor)
+        return f"{self.__class__.__name__}({self._factor})"
 
 
 @use_np
@@ -1798,7 +1788,7 @@ class PixelShuffle2D(HybridBlock):
             self._factors = (int(factor),) * 2
         except TypeError:
             self._factors = tuple(int(fac) for fac in factor)
-            assert len(self._factors) == 2, "wrong length {}".format(len(self._factors))
+            assert len(self._factors) == 2, f"wrong length {len(self._factors)}"
 
     def forward(self, x):
         """Perform pixel-shuffling on the input."""
@@ -1811,7 +1801,7 @@ class PixelShuffle2D(HybridBlock):
         return x
 
     def __repr__(self):
-        return "{}({})".format(self.__class__.__name__, self._factors)
+        return f"{self.__class__.__name__}({self._factors})"
 
 
 @use_np
@@ -1861,7 +1851,7 @@ class PixelShuffle3D(HybridBlock):
             self._factors = (int(factor),) * 3
         except TypeError:
             self._factors = tuple(int(fac) for fac in factor)
-            assert len(self._factors) == 3, "wrong length {}".format(len(self._factors))
+            assert len(self._factors) == 3, f"wrong length {len(self._factors)}"
 
     def forward(self, x):
         """Perform pixel-shuffling on the input."""
@@ -1880,4 +1870,4 @@ class PixelShuffle3D(HybridBlock):
         return x
 
     def __repr__(self):
-        return "{}({})".format(self.__class__.__name__, self._factors)
+        return f"{self.__class__.__name__}({self._factors})"

@@ -136,8 +136,9 @@ def get_create_func(base_class, nickname):
             name = kwargs.pop(nickname)
 
         if isinstance(name, base_class):
-            assert len(args) == 0 and len(kwargs) == 0, \
-                f"{nickname} is already an instance. Additional arguments are invalid"
+            assert (
+                len(args) == 0 and not kwargs
+            ), f"{nickname} is already an instance. Additional arguments are invalid"
             return name
 
         if isinstance(name, dict):

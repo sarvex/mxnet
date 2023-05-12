@@ -47,8 +47,7 @@ def eval_func(model):
   for x, label in val_data:
     output = model(x)
     metric.update(label, output)
-  accuracy = metric.get()[1]
-  return accuracy
+  return metric.get()[1]
 
 
 from neural_compressor.experimental import Quantization

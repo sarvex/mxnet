@@ -39,19 +39,19 @@ def test_tvm_dot():
         m = i
         k = i
         n = i
-        print("{} * {} X {} * {}".format(m, k, k, n))
+        print(f"{m} * {k} X {k} * {n}")
         a = mx.nd.random.uniform(shape=(m, k), dtype='float32')
         b = mx.nd.random.uniform(shape=(k, n), dtype='float32')
         cost = measure_cost(2, mx.nd.contrib.tvm_dot, a, b)
-        print("dispatch cost: {} ms".format(cost * 1000))
+        print(f"dispatch cost: {cost * 1000} ms")
         a = mx.nd.random.uniform(shape=(m, k), dtype='float32')
         b = mx.nd.random.uniform(shape=(k, n), dtype='float32')
         cost = measure_cost(2, mx.nd.contrib.tvm_dot_fallback, a, b)
-        print("fallback cost: {} ms".format(cost * 1000))
+        print(f"fallback cost: {cost * 1000} ms")
         a = mx.nd.random.uniform(shape=(m, k), dtype='float32')
         b = mx.nd.random.uniform(shape=(k, n), dtype='float32')
         cost = measure_cost(2, mx.nd.dot, a, b)
-        print("dot cost: {} ms".format(cost * 1000))
+        print(f"dot cost: {cost * 1000} ms")
 
 if __name__ == "__main__":
     test_tvm_dot()

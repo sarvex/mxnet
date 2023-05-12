@@ -61,9 +61,9 @@ def s3_upload(bucket: str, s3_key_prefix: str, paths: List[str]):
     :param paths: A list of paths to files
     """
     for path in paths:
-        s3_key = "{}/{}".format(s3_key_prefix, os.path.basename(path))
-        logger.info('Uploading {}'.format(path))
-        logger.debug("Uploading {} to s3://{}/{}".format(path, bucket, s3_key))
+        s3_key = f"{s3_key_prefix}/{os.path.basename(path)}"
+        logger.info(f'Uploading {path}')
+        logger.debug(f"Uploading {path} to s3://{bucket}/{s3_key}")
         with open(path, 'rb') as data:
             s3.upload_fileobj(Fileobj=data, Key=s3_key, Bucket=bucket)
 
@@ -117,8 +117,8 @@ def try_s3_download(bucket, s3_key_prefix, destination) -> bool:
         # extract file path with any subdirectories and remove the leading file separator
         output_path = os.path.join(destination, key[len(s3_key_prefix):].lstrip(os.sep))
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        logger.info('Downloading {}'.format(output_path))
-        logger.debug("Downloading s3://{}/{} to {}".format(bucket, key, output_path))
+        logger.info(f'Downloading {output_path}')
+        logger.debug(f"Downloading s3://{bucket}/{key} to {output_path}")
         with open(output_path, 'wb') as fp:
             s3.download_fileobj(Fileobj=fp, Key=key, Bucket=bucket)
 
@@ -133,7 +133,7 @@ def get_commit_id_from_cmd() -> Optional[str]:
     try:
         logger.debug('Executing "git rev-parse HEAD"')
         commit_id = check_output("git rev-parse HEAD".split(" ")).decode('UTF-8').strip()
-        logger.debug('Found commit id: {}'.format(commit_id))
+        logger.debug(f'Found commit id: {commit_id}')
         return commit_id
     except CalledProcessError as e:
         logger.debug('Error getting commit id:')
@@ -157,7 +157,7 @@ def probe_commit_id() -> str:
     if not commit_id:
         logger.debug('Could not determine git commit id')
     else:
-        logger.debug('Commit id is: {}'.format(commit_id))
+        logger.debug(f'Commit id is: {commit_id}')
     return commit_id
 
 
@@ -175,7 +175,7 @@ def get_linux_os_release_properties() -> Optional[Dict[str, str]]:
         with open('/etc/os-release', 'r') as fp:
             # removes empty spaces and quotation marks from line
             property_tuple_list = [line.strip().replace('"', '').split('=') for line in fp if line.strip()]
-            return {key: value for (key, value) in property_tuple_list}
+            return dict(property_tuple_list)
     except Exception as e:
         logger.debug('Error parsing /etc/os-release')
         logger.debug(e)
@@ -190,12 +190,11 @@ def get_linux_distribution_and_version() -> Optional[str]:
     :return: The linux distribution and version string, or None if not found.
     """
     logger.debug('Getting linux distribution and version')
-    os_properties = get_linux_os_release_properties()
-    if os_properties:
-        logger.debug('os properties: {}'.format(os_properties))
+    if os_properties := get_linux_os_release_properties():
+        logger.debug(f'os properties: {os_properties}')
         distribution = os_properties['ID']
         version = os_properties['VERSION_ID']
-        return "{}{}".format(distribution, version)
+        return f"{distribution}{version}"
 
     logger.debug('Error getting linux distribution and version. Could not determine os properties.')
     return None
@@ -208,11 +207,11 @@ def probe_operating_system() -> str:
     """
     logger.debug('Determining operating system')
     operating_system = sys.platform
-    logger.debug('Found platform: {}'.format(operating_system))
+    logger.debug(f'Found platform: {operating_system}')
     if operating_system.startswith('linux'):
         operating_system = get_linux_distribution_and_version()
 
-    logger.debug('Operating system is {}'.format(operating_system))
+    logger.debug(f'Operating system is {operating_system}')
     return operating_system
 
 
@@ -223,7 +222,7 @@ def get_libmxnet_features(libmxnet_path: str) -> Optional[Dict[str, bool]]:
     :param libmxnet_path: path to the libmxnet library
     :return: dictionary of features to whether they are enabled
     """
-    logger.debug('Getting feature dictionary from {}'.format(libmxnet_path))
+    logger.debug(f'Getting feature dictionary from {libmxnet_path}')
 
     class Feature(ctypes.Structure):
         _fields_ = [("_name", ctypes.c_char_p), ("enabled", ctypes.c_bool)]
@@ -239,8 +238,9 @@ def get_libmxnet_features(libmxnet_path: str) -> Optional[Dict[str, bool]]:
     try:
         libmxnet = ctypes.CDLL(libmxnet_path, ctypes.RTLD_LOCAL)
     except Exception as e:
-        logger.error('Error loading {}. '
-                     'Please check check path to libmxnet library is correct.'.format(libmxnet_path))
+        logger.error(
+            f'Error loading {libmxnet_path}. Please check check path to libmxnet library is correct.'
+        )
         logger.error(e)
         return None
 
@@ -248,11 +248,12 @@ def get_libmxnet_features(libmxnet_path: str) -> Optional[Dict[str, bool]]:
     feature_array = ctypes.POINTER(Feature)()
     feature_array_size = ctypes.c_size_t()
     if libmxnet.MXLibInfoFeatures(ctypes.byref(feature_array), ctypes.byref(feature_array_size)) != 0:
-        logger.error('Could not determine features from {}. '
-                     'Please specify the variant manually using the "--variant" argument.'.format(libmxnet_path))
+        logger.error(
+            f'Could not determine features from {libmxnet_path}. Please specify the variant manually using the "--variant" argument.'
+        )
         return None
     features = {feature_array[i].name: feature_array[i].enabled for i in range(feature_array_size.value)}
-    logger.debug('Found features: {}'.format(features))
+    logger.debug(f'Found features: {features}')
     return features
 
 
@@ -272,15 +273,13 @@ def get_cuda_version() -> Optional[str]:
         logger.error(e)
         return None
 
-    logger.debug('Extracting cuda version from {}'.format(nvcc_version))
-    # eg. "Cuda compilation tools, release 10.0, V10.0.130"
-    match = re.search(r' ([0-9]+.[0-9]+)', nvcc_version)
-    if match:
-        cuda_version = match.group(1).replace('.', '')
-        logger.debug('Found cuda version: {}'.format(cuda_version))
+    logger.debug(f'Extracting cuda version from {nvcc_version}')
+    if match := re.search(r' ([0-9]+.[0-9]+)', nvcc_version):
+        cuda_version = match[1].replace('.', '')
+        logger.debug(f'Found cuda version: {cuda_version}')
         return cuda_version
 
-    logger.debug('Could not determine cuda version from "{}"'.format(nvcc_version))
+    logger.debug(f'Could not determine cuda version from "{nvcc_version}"')
     return None
 
 
@@ -309,12 +308,11 @@ def probe_gpu_variant(mxnet_features: Dict[str, bool]) -> Optional[str]:
     if not mxnet_features['CUDA']:
         raise RuntimeError('Cannot determine gpu variant. CUDA feature is disabled.')
 
-    cuda_version = get_cuda_version()
-    if cuda_version:
-        variant = 'cu{}'.format(cuda_version)
+    if cuda_version := get_cuda_version():
+        variant = f'cu{cuda_version}'
         if not mxnet_features['ONEDNN']:
             RuntimeError('Error determining mxnet variant: oneDNN should be enabled for cuda variants')
-        logger.debug('variant is: {}'.format(variant))
+        logger.debug(f'variant is: {variant}')
         return variant
 
     raise RuntimeError('Error determining mxnet variant: Could not retrieve cuda version')
@@ -397,9 +395,7 @@ def get_s3_key_prefix(args: argparse.Namespace, subdir: str = '') -> str:
     :return: A string containing the S3 key prefix to be used to uploading and downloading files to the artifact repository
     """
     prefix = "{git_sha}/{libtype}/{os}/{variant}/".format(**vars(args))
-    if subdir:
-        return "{}{}/".format(prefix, subdir)
-    return prefix
+    return f"{prefix}{subdir}/" if subdir else prefix
 
 
 def push_artifact(args: argparse.Namespace):
@@ -412,12 +408,12 @@ def push_artifact(args: argparse.Namespace):
     args = probe(args)
 
     logger.info('Pushing artifact with: ')
-    logger.info('COMMIT ID   : {}'.format(args.git_sha))
-    logger.info('OS          : {}'.format(args.os))
-    logger.info('VARIANT     : {}'.format(args.variant))
-    logger.info("LIBMXNET    : {}".format(args.libmxnet))
-    logger.info("LICENSES    : {}".format(args.licenses))
-    logger.info("DEPENDENCIES: {}".format(args.dependencies))
+    logger.info(f'COMMIT ID   : {args.git_sha}')
+    logger.info(f'OS          : {args.os}')
+    logger.info(f'VARIANT     : {args.variant}')
+    logger.info(f"LIBMXNET    : {args.libmxnet}")
+    logger.info(f"LICENSES    : {args.licenses}")
+    logger.info(f"DEPENDENCIES: {args.dependencies}")
     logger.info("")
 
     if not args.licenses:
@@ -460,10 +456,10 @@ def pull_artifact(args: argparse.Namespace):
     args = probe(args)
 
     logger.info('Pulling artifact with: ')
-    logger.info('COMMIT ID   : {}'.format(args.git_sha))
-    logger.info('OS          : {}'.format(args.os))
-    logger.info('VARIANT     : {}'.format(args.variant))
-    logger.info('To directory: {}'.format(args.destination))
+    logger.info(f'COMMIT ID   : {args.git_sha}')
+    logger.info(f'OS          : {args.os}')
+    logger.info(f'VARIANT     : {args.variant}')
+    logger.info(f'To directory: {args.destination}')
 
     try:
         if not try_s3_download(args.bucket, get_s3_key_prefix(args), args.destination):
@@ -485,7 +481,7 @@ def is_file(path: str) -> str:
     :raises FileNotFoundError if file does not exist
     """
     if not os.path.exists(path):
-        raise FileNotFoundError('''File '{}' not found'''.format(path))
+        raise FileNotFoundError(f'''File '{path}' not found''')
     return os.path.isfile(path)
 
 

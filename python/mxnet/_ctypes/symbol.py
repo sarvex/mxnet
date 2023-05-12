@@ -69,7 +69,7 @@ class SymbolBase(object):
 
         if name:
             name = c_str(name)
-        if len(args) != 0 and len(kwargs) != 0:
+        if args and kwargs:
             raise TypeError('compose only accept input Symbols \
                 either as positional or keyword arguments, not both')
 
@@ -81,12 +81,8 @@ class SymbolBase(object):
                 raise TypeError('Compose expect `Symbol` as arguments')
 
         num_args = len(args) + len(kwargs)
-        if len(kwargs) != 0:
-            keys = c_str_array(kwargs.keys())
-            args = c_handle_array(kwargs.values())
-        else:
-            keys = None
-            args = c_handle_array(kwargs.values())
+        keys = c_str_array(kwargs.keys()) if kwargs else None
+        args = c_handle_array(kwargs.values())
         check_call(_LIB.NNSymbolCompose(
             self.handle, name, num_args, keys, args))
 

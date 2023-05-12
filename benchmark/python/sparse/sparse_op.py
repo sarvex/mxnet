@@ -58,9 +58,7 @@ avazu = {
 def measure_cost(repeat, f, *args, **kwargs):
     # start bench
     start = time.time()
-    results = []
-    for i in range(repeat):
-        results.append(f(*args, **kwargs))
+    results = [f(*args, **kwargs) for _ in range(repeat)]
     for result in results:
         result.wait_to_read()
     end = time.time()

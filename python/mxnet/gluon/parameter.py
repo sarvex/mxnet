@@ -211,11 +211,8 @@ class Parameter(object):
         if self._stype != 'default' and self._trainer and trainer and self._trainer() is not trainer:
             raise RuntimeError(
                 f"Failed to set the trainer for Parameter '{self.name}' because it was already set. " \
-                f"More than one trainers for a {self._stype} Parameter is not supported.")
-        if trainer is not None:
-            self._trainer = weakref.ref(trainer)
-        else:
-            self._trainer = trainer
+                    f"More than one trainers for a {self._stype} Parameter is not supported.")
+        self._trainer = weakref.ref(trainer) if trainer is not None else trainer
 
     def _check_and_get(self, arr_list, device):
         if arr_list is not None:
@@ -330,17 +327,18 @@ class Parameter(object):
         self._deferred_init = ()
 
         assert shape_is_known(self.shape), \
-            f"Cannot initialize Parameter '{self.name}' because it has " \
-            f"invalid shape: {str(self.shape)}. Please specify in_units, " \
-            "in_channels, etc for `Block`s."
+                f"Cannot initialize Parameter '{self.name}' because it has " \
+                f"invalid shape: {str(self.shape)}. Please specify in_units, " \
+                "in_channels, etc for `Block`s."
 
-        with autograd.pause(), dc.context(False):
+        with (autograd.pause(), dc.context(False)):
             if data is None:
                 if is_np_array():
                     kwargs = {'shape': self.shape, 'dtype': self.dtype, 'device': cpu()}
                     if self._stype != 'default':
-                        raise ValueError("Currently stype {} is not supported in NumPy interface and Gluon2.0"
-                                         .format(self._stype))
+                        raise ValueError(
+                            f"Currently stype {self._stype} is not supported in NumPy interface and Gluon2.0"
+                        )
                     zeros_fn = _mx_np.zeros
                 else:
                     kwargs = {'shape': self.shape, 'dtype': self.dtype, 'ctx': cpu()}
@@ -373,8 +371,9 @@ class Parameter(object):
 
         if is_np_array():
             if self._grad_stype != 'default':
-                raise ValueError("Currently stype {} is not supported in NumPy interface and Gluon2.0"
-                                 .format(self._grad_stype))
+                raise ValueError(
+                    f"Currently stype {self._grad_stype} is not supported in NumPy interface and Gluon2.0"
+                )
             self._grad = [_mx_np.zeros(shape=i.shape, dtype=i.dtype, device=i.device)
                           for i in self._data]
         else:
@@ -391,7 +390,7 @@ class Parameter(object):
             block = self.list_data()
             if len(block) > 1:
                 if is_np_array():
-                    data = sum([w.copyto(device) for w in block]) / len(block)
+                    data = sum(w.copyto(device) for w in block) / len(block)
                 else:
                     data = ndarray.add_n(*(w.copyto(device) for w in block)) / len(block)
             else:
@@ -403,7 +402,7 @@ class Parameter(object):
             trainer = self._trainer() if self._trainer else None
             if not trainer:
                 raise RuntimeError(f"Cannot reduce row_sparse data for Parameter '{self.name}' when no " \
-                                   "Trainer is created with it.")
+                                       "Trainer is created with it.")
             trainer._row_sparse_pull(self, data, all_row_ids, full_idx=True)
         return data
 
@@ -513,15 +512,19 @@ class Parameter(object):
 
         if self._data is None:
             assert self._deferred_init, \
-                f"Parameter '{self.name}' has not been initialized"
+                    f"Parameter '{self.name}' has not been initialized"
             self._deferred_init = self._deferred_init[:3] + (data,)
             return
 
         # if update_on_kvstore, we need to make sure the copy stored in kvstore is in sync
         trainer = self._trainer() if self._trainer else None
-        if trainer and trainer._kv_initialized and trainer._update_on_kvstore:
-            if self not in trainer._params_to_init:
-                trainer._reset_kvstore()
+        if (
+            trainer
+            and trainer._kv_initialized
+            and trainer._update_on_kvstore
+            and self not in trainer._params_to_init
+        ):
+            trainer._reset_kvstore()
 
         for arr in self._check_and_get(self._data, list):
             arr[:] = data
@@ -742,7 +745,7 @@ class Constant(Parameter):
         class Init(initializer.Initializer):
             def _init_weight(self, _, arr):
                 value.copyto(arr)
-        init_name = 'Constant_{}'.format(id(self))
+        init_name = f'Constant_{id(self)}'
         initializer.alias(init_name)(Init)
 
         super(Constant, self).__init__(
@@ -760,6 +763,6 @@ class Constant(Parameter):
     @grad_req.setter
     def grad_req(self, req):
         if req != 'null':
-            warnings.warn('Constant parameter "{}" does not support '
-                          'grad_req other than "null", and new value "{}" '
-                          'is ignored.'.format(self.name, req))
+            warnings.warn(
+                f'Constant parameter "{self.name}" does not support grad_req other than "null", and new value "{req}" is ignored.'
+            )

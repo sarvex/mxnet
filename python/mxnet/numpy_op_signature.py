@@ -41,13 +41,15 @@ def _get_builtin_op(op_name):
     if len(submodule_name) > 0:
         op_module = getattr(root_module, submodule_name[1:-1], None)
         if op_module is None:
-            raise ValueError('Cannot find submodule {} in module {}'
-                             .format(submodule_name[1:-1], root_module.__name__))
+            raise ValueError(
+                f'Cannot find submodule {submodule_name[1:-1]} in module {root_module.__name__}'
+            )
 
     op = getattr(op_module, op_name[(len(op_name_prefix)+len(submodule_name)):], None)
     if op is None:
-        raise ValueError('Cannot find operator {} in module {}'
-                         .format(op_name[len(op_name_prefix):], root_module.__name__))
+        raise ValueError(
+            f'Cannot find operator {op_name[len(op_name_prefix):]} in module {root_module.__name__}'
+        )
     return op
 
 

@@ -155,8 +155,8 @@ class CudaModule(object):
             is_ndarray.append(bool(match.groups()[2]))
             if dtype not in _DTYPE_CPP_TO_NP:
                 raise TypeError(
-                    "Unsupported kernel argument type {}. Supported types are: {}.".format(
-                        sanitized_arg, ','.join(_DTYPE_CPP_TO_NP.keys())))
+                    f"Unsupported kernel argument type {sanitized_arg}. Supported types are: {','.join(_DTYPE_CPP_TO_NP.keys())}."
+                )
             dtypes.append(dtype_np_to_mx(_DTYPE_CPP_TO_NP[dtype]))
 
         check_call(_LIB.MXRtcCudaKernelCreate(

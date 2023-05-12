@@ -20,6 +20,7 @@
 """cifar10_dist_hvd.py contains code that runs distributed training of a
 ResNet18 network using Horovod framework"""
 
+
 import argparse
 import logging
 import time
@@ -47,10 +48,8 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disable training on GPU (default: False)')
 args = parser.parse_args()
 
-if not args.no_cuda:
-    # Disable CUDA if there are no GPUs.
-    if mx.device.num_gpus() == 0:
-        args.no_cuda = True
+if not args.no_cuda and mx.device.num_gpus() == 0:
+    args.no_cuda = True
 
 
 # Transform input data
@@ -126,8 +125,7 @@ def evaluate(data_iterator, network, context):
     acc = mx.gluon.metric.Accuracy()
 
     # Iterate through data and label
-    for i, (data, label) in enumerate(data_iterator):
-
+    for data, label in data_iterator:
         # Get the data and label into the GPU
         data = data.as_in_context(context)
         label = label.as_in_context(context)
@@ -215,10 +213,8 @@ for epoch in range(args.epochs):
     tic = time.time()
     train_metric.reset()
 
-    # Iterate through batches and run training using multiple GPUs
-    batch_num = 1
     btic = time.time()
-    for batch in train_data:
+    for batch_num, batch in enumerate(train_data, start=1):
         # Train the batch using multiple GPUs
         train(batch, [ctx], net, trainer, train_metric)
         if store.rank == 0 and batch_num % 100 == 0:
@@ -228,8 +224,6 @@ for epoch in range(args.epochs):
             logging.info('{} = {:.2f}'.format(*train_metric.get()))
 
         btic = time.time()
-        batch_num += 1
-
     elapsed = time.time() - tic
     # Print test accuracy after every epoch
     test_accuracy = evaluate(test_data, net, ctx)

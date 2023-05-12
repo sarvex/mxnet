@@ -191,7 +191,12 @@ class ImageDataLoader(object):
                  prefetch=None, thread_pool=False, timeout=120, try_nopython=None,
                  **kwargs):
         assert path_imgrec or path_imglist or (isinstance(imglist, list))
-        assert dtype in ['int32', 'float32', 'int64', 'float64'], dtype + ' label not supported'
+        assert dtype in [
+            'int32',
+            'float32',
+            'int64',
+            'float64',
+        ], f'{dtype} label not supported'
         logging.info('Using %s workers for decoding...', str(num_workers))
         logging.info('Set `num_workers` variable to a larger number to speed up loading'
                      ' (it requires shared memory to work and may occupy more memory).')
@@ -219,7 +224,7 @@ class ImageDataLoader(object):
             # apply default transforms
             augmenter = create_image_augment(data_shape, **kwargs)
         elif isinstance(aug_list, list):
-            if all([isinstance(a, HybridBlock) for a in aug_list]):
+            if all(isinstance(a, HybridBlock) for a in aug_list):
                 augmenter = HybridSequential()
             else:
                 augmenter = Sequential()
@@ -410,7 +415,12 @@ class ImageBboxDataLoader(object):
                  prefetch=None, thread_pool=False, timeout=120, try_nopython=None,
                  **kwargs):
         assert path_imgrec or path_imglist or (isinstance(imglist, list))
-        assert dtype in ['int32', 'float32', 'int64', 'float64'], dtype + ' label not supported'
+        assert dtype in [
+            'int32',
+            'float32',
+            'int64',
+            'float64',
+        ], f'{dtype} label not supported'
         logging.info('Using %s workers for decoding...', str(num_workers))
         logging.info('Set `num_workers` variable to a larger number to speed up loading'
                      ' (it requires shared memory to work and may occupy more memory).')
@@ -438,7 +448,7 @@ class ImageBboxDataLoader(object):
             # apply default transforms
             augmenter = create_bbox_augment(data_shape, **kwargs)
         elif isinstance(aug_list, list):
-            if all([isinstance(a, HybridBlock) for a in aug_list]):
+            if all(isinstance(a, HybridBlock) for a in aug_list):
                 augmenter = HybridSequential()
             else:
                 augmenter = Sequential()
@@ -498,15 +508,15 @@ class BboxLabelTransform(Block):
         label_width = int(label[1])  # the label width for each object, >= 5
         if label_width < 5:
             raise ValueError(
-                "Label info for each object should >= 5, given {}".format(label_width))
+                f"Label info for each object should >= 5, given {label_width}"
+            )
         min_len = header_len + 5
         if len(label) < min_len:
-            raise ValueError(
-                "Expected label length >= {}, got {}".format(min_len, len(label)))
+            raise ValueError(f"Expected label length >= {min_len}, got {len(label)}")
         if (len(label) - header_len) % label_width:
             raise ValueError(
-                "Broken label of size {}, cannot reshape into (N, {}) "
-                "if header length {} is excluded".format(len(label), label_width, header_len))
+                f"Broken label of size {len(label)}, cannot reshape into (N, {label_width}) if header length {header_len} is excluded"
+            )
         bbox_label = label[header_len:].reshape(-1, label_width)
         # swap columns, requires [xmin-ymin-xmax-ymax-id-extra0-extra1-xxx]
         ids = bbox_label[:, 0].copy()

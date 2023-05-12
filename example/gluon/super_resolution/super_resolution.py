@@ -72,9 +72,7 @@ def get_dataset(prefetch=False):
 
     if path.exists(data_dir):
         print(
-            "Directory {} already exists, skipping.\n"
-            "To force download and extraction, delete the directory and re-run."
-            "".format(data_dir),
+            f"Directory {data_dir} already exists, skipping.\nTo force download and extraction, delete the directory and re-run.",
             file=sys.stderr,
         )
     else:
@@ -164,9 +162,7 @@ def test(device):
         batches += 1
         data = gluon.utils.split_and_load(batch.data[0], device_list=device, batch_axis=0)
         label = gluon.utils.split_and_load(batch.label[0], device_list=device, batch_axis=0)
-        outputs = []
-        for x in data:
-            outputs.append(net(x))
+        outputs = [net(x) for x in data]
         metric.update(label, outputs)
         avg_psnr += 10 * math.log10(1/metric.get()[1])
         metric.reset()
@@ -226,7 +222,7 @@ def resolve(device):
     out_img_cr = cr.resize(out_img_y.size, Image.BICUBIC)
     out_img = Image.merge('YCbCr', [out_img_y, out_img_cb, out_img_cr]).convert('RGB')
 
-    out_img.save(path.join(img_dirname, '{}-resolved.png'.format(img_basename)))
+    out_img.save(path.join(img_dirname, f'{img_basename}-resolved.png'))
 
 if opt.resolve_img:
     resolve(device)

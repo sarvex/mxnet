@@ -210,12 +210,13 @@ class MultivariateNormalProp(operator.CustomOpProp):
         if len(cov_shape) < 2:
             raise ValueError("cov must be at least 2 dimensional")
         if cov_shape[-1] != cov_shape[-2]:
-            raise ValueError("the last two dimentions of the parameter cov have to be the same,"
-                             " whereas the shape of cov is {}".format(cov_shape))
+            raise ValueError(
+                f"the last two dimentions of the parameter cov have to be the same, whereas the shape of cov is {cov_shape}"
+            )
         if cov_shape[-1] != loc_shape[-1]:
-            raise ValueError("mean and cov must have same length."
-                             "The shape of mean is {} but the shape of cov is {}"
-                             .format(loc_shape[-1:], cov_shape[-2:]))
+            raise ValueError(
+                f"mean and cov must have same length.The shape of mean is {loc_shape[-1:]} but the shape of cov is {cov_shape[-2:]}"
+            )
         # handle shape mismatch here
         out_shape = np.broadcast(np.empty(loc_shape), np.empty(cov_shape[:-1])).shape
         if self._size is not None:

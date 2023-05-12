@@ -56,15 +56,14 @@ test_cases = {
 def generate_test_cases():
     tests = []
     for op_name, cases in test_cases.items():
-        for case in cases:
-            tests.append((op_name, case[0], case[1]))
+        tests.extend((op_name, case[0], case[1]) for case in cases)
     return tests
 
 def generate_test_ids():
     test_ids = []
     for op_name, cases in test_cases.items():
         for case in cases:
-            s = op_name + "-shape_"
+            s = f"{op_name}-shape_"
             for i in range(len(case[0])):
                 s += str(case[0][i])
                 if (i != len(case[0])-1):
@@ -73,7 +72,7 @@ def generate_test_ids():
             if len(params) != 0:
                 s += "-params"
                 for key, value in params:
-                    s += "_" + str(key) + "_"
+                    s += f"_{str(key)}_"
                     if isinstance(value, tuple):
                         for i in range(len(value)):
                             s += str(value[i])

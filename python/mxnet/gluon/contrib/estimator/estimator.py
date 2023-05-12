@@ -140,8 +140,7 @@ class Estimator(object):
 
     def _check_loss(self, loss):
         if not isinstance(loss, gluon_loss):
-            raise ValueError("loss must be a Loss, "
-                             "refer to gluon.loss.Loss:{}".format(loss))
+            raise ValueError(f"loss must be a Loss, refer to gluon.loss.Loss:{loss}")
         return loss
 
     def _check_context(self, context):
@@ -159,28 +158,27 @@ class Estimator(object):
             # check devices values, only accept Device or a list of Device
             if isinstance(devices, Device):
                 devices = [devices]
-            elif isinstance(devices, list) and all([isinstance(c, Device) for c in devices]):
+            elif isinstance(devices, list) and all(
+                isinstance(c, Device) for c in devices
+            ):
                 devices = devices
             else:
-                raise ValueError("devices must be a Device or a list of Device, "
-                                 "for example mx.cpu() or [mx.gpu(0), mx.gpu(1)], "
-                                 "refer to mxnet.Device:{}".format(devices))
+                raise ValueError(
+                    f"devices must be a Device or a list of Device, for example mx.cpu() or [mx.gpu(0), mx.gpu(1)], refer to mxnet.Device:{devices}"
+                )
             for device in devices:
-                assert device in available_gpus or str(device).startswith('cpu'), \
-                    "{} is not available, please make sure " \
-                    "your device is in one of: mx.cpu(), {}".format(
-                        device, ', '.join([str(device) for device in available_gpus]))
+                assert device in available_gpus or str(device).startswith(
+                    'cpu'
+                ), f"{device} is not available, please make sure your device is in one of: mx.cpu(), {', '.join([str(device) for device in available_gpus])}"
+        elif gpus > 0:
+            # only use 1 GPU by default
+            if gpus > 1:
+                warnings.warn("You have multiple GPUs, gpu(0) will be used by default."
+                              "To utilize all your GPUs, specify device as a list of gpus, "
+                              "e.g. devices=[mx.gpu(0), mx.gpu(1)] ")
+            devices = [gpu(0)]
         else:
-            # provide default device
-            if gpus > 0:
-                # only use 1 GPU by default
-                if gpus > 1:
-                    warnings.warn("You have multiple GPUs, gpu(0) will be used by default."
-                                  "To utilize all your GPUs, specify device as a list of gpus, "
-                                  "e.g. devices=[mx.gpu(0), mx.gpu(1)] ")
-                devices = [gpu(0)]
-            else:
-                devices = [cpu()]
+            devices = [cpu()]
         return devices
 
     def _check_batch_processor(self, batch_processor):
@@ -223,8 +221,9 @@ class Estimator(object):
             trainer = Trainer(self.net.collect_params(),
                               'sgd', {'learning_rate': 0.001})
         elif not isinstance(trainer, Trainer):
-            raise ValueError("Trainer must be a Gluon Trainer instance, refer to "
-                             "gluon.Trainer:{}".format(trainer))
+            raise ValueError(
+                f"Trainer must be a Gluon Trainer instance, refer to gluon.Trainer:{trainer}"
+            )
         return trainer
 
     def _is_initialized(self):
@@ -245,8 +244,7 @@ class Estimator(object):
 
     def _add_default_training_metrics(self):
         if not self._train_metrics:
-            suggested_metric = _suggest_metric_for_loss(self.loss)
-            if suggested_metric:
+            if suggested_metric := _suggest_metric_for_loss(self.loss):
                 self._train_metrics = [suggested_metric]
             loss_name = type(self.loss).__name__
             self._train_metrics.append(metric_loss(loss_name))
@@ -254,7 +252,7 @@ class Estimator(object):
         for metric in self._train_metrics:
             # add training prefix to the metric name
             # it is useful for event handlers to distinguish them from validation metrics
-            metric.name = 'training ' + metric.name
+            metric.name = f'training {metric.name}'
 
     def _add_validation_metrics(self):
         if not self._val_metrics:
@@ -266,7 +264,7 @@ class Estimator(object):
             if 'training' in metric.name:
                 metric.name = metric.name.replace('training', 'validation')
             else:
-                metric.name = 'validation ' + metric.name
+                metric.name = f'validation {metric.name}'
 
     @property
     def train_metrics(self):
@@ -385,7 +383,7 @@ class Estimator(object):
         event_handlers = self._prepare_default_handlers(val_data, event_handlers)
 
         train_begin, epoch_begin, batch_begin, \
-        batch_end, epoch_end, train_end = self._categorize_handlers(event_handlers)
+            batch_end, epoch_end, train_end = self._categorize_handlers(event_handlers)
 
         # pass a reference to all event handlers
         estimator_ref = self
@@ -405,20 +403,21 @@ class Estimator(object):
 
                 _, label, pred, loss = self.batch_processor.fit_batch(estimator_ref,
                                                                       batch, batch_axis)
-                # batch end
-
-                batch_end_result = []
-                for handler in batch_end:
-                    batch_end_result.append(handler.batch_end(estimator_ref, batch=batch,
-                                                              pred=pred, label=label, loss=loss))
+                batch_end_result = [
+                    handler.batch_end(
+                        estimator_ref,
+                        batch=batch,
+                        pred=pred,
+                        label=label,
+                        loss=loss,
+                    )
+                    for handler in batch_end
+                ]
                 # if any handler signaled to stop
                 if any(batch_end_result):
                     break
 
-            # epoch end
-            epoch_end_result = []
-            for handler in epoch_end:
-                epoch_end_result.append(handler.epoch_end(estimator_ref))
+            epoch_end_result = [handler.epoch_end(estimator_ref) for handler in epoch_end]
             # if any handler signaled to stop
             if any(epoch_end_result):
                 break
@@ -429,10 +428,7 @@ class Estimator(object):
 
     def _prepare_default_handlers(self, val_data, event_handlers):
         event_handlers = _check_event_handlers(event_handlers)
-        added_default_handlers = []
-
-        # no need to add to default handler check as StoppingHandler does not use metrics
-        added_default_handlers.append(StoppingHandler(self.max_epoch, self.max_batch))
+        added_default_handlers = [StoppingHandler(self.max_epoch, self.max_batch)]
 
         if not any(isinstance(handler, GradientUpdateHandler) for handler in event_handlers):
             added_default_handlers.append(GradientUpdateHandler())
@@ -440,12 +436,16 @@ class Estimator(object):
         if not any(isinstance(handler, MetricHandler) for handler in event_handlers):
             added_default_handlers.append(MetricHandler(metrics=self.train_metrics))
 
-        if not any(isinstance(handler, ValidationHandler) for handler in event_handlers):
-            # no validation handler
-            if val_data:
-                # add default validation handler if validation data found
-                added_default_handlers.append(ValidationHandler(val_data=val_data,
-                                                                eval_fn=self.evaluate))
+        if (
+            not any(
+                isinstance(handler, ValidationHandler)
+                for handler in event_handlers
+            )
+            and val_data
+        ):
+            # add default validation handler if validation data found
+            added_default_handlers.append(ValidationHandler(val_data=val_data,
+                                                            eval_fn=self.evaluate))
 
         if not any(isinstance(handler, LoggingHandler) for handler in event_handlers):
             added_default_handlers.append(LoggingHandler(metrics=self.train_metrics))

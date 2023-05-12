@@ -161,10 +161,7 @@ class ImageListIter(mx.io.DataIter):
         self.cur = 0
         self.batch_size = batch_size
         self.size = size
-        if mean is not None:
-            self.mean = mx.nd.array(mean)
-        else:
-            self.mean = None
+        self.mean = mx.nd.array(mean) if mean is not None else None
 
     def reset(self):
         """Reset iterator position to 0"""

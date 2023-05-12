@@ -100,7 +100,7 @@ class ConfigSpace(object):
         res = f"ConfigSpace (len={len(self)}, space_map=\n"
         for i, (name, space) in enumerate(self.space_map.items()):
             res += f"  {i:2} {name}: {space}\n"
-        return res + ")"
+        return f"{res})"
 
     def to_json_dict(self):
         """convert to a json serializable dictionary
@@ -110,20 +110,17 @@ class ConfigSpace(object):
         ret: dict
             a json serializable dictionary
         """
-        ret = {}
         entity_map = []
         for k, v in self._entity_map.items():
             if isinstance(v, OtherOptionEntity):
                 entity_map.append((k, 'ot', v.val))
             else:
-                raise RuntimeError("Invalid entity instance: " + v)
-        ret['e'] = entity_map
+                raise RuntimeError(f"Invalid entity instance: {v}")
         space_map = []
         for k, v in self.space_map.items():
             entities = [e.val for e in v.entities]
             space_map.append((k, 'ot', entities))
-        ret['s'] = space_map
-        return ret
+        return {'e': entity_map, 's': space_map}
 
     @classmethod
     def from_json_dict(cls, json_dict):
@@ -147,7 +144,7 @@ class ConfigSpace(object):
             if knob_type == 'ot':
                 entity = OtherOptionEntity(knob_args)
             else:
-                raise RuntimeError("Invalid config knob type: " + knob_type)
+                raise RuntimeError(f"Invalid config knob type: {knob_type}")
             entity_map[str(key)] = entity
         space_map = OrderedDict()
         for item in json_dict["s"]:
@@ -155,7 +152,7 @@ class ConfigSpace(object):
             if knob_type == 'ot':
                 space = OtherOptionSpace(knob_args)
             else:
-                raise RuntimeError("Invalid config knob type: " + knob_type)
+                raise RuntimeError(f"Invalid config knob type: {knob_type}")
             space_map[str(key)] = space
         return cls(space_map, entity_map)
 
@@ -175,7 +172,7 @@ class ConfigSpaces(object):
         res = f"ConfigSpaces (len={len(self)}, config_space=\n"
         for i, (key, val) in enumerate(self.spaces.items()):
             res += f"  {i:2} {key}:\n {val}\n"
-        return res + ")"
+        return f"{res})"
 
     def to_json_dict(self):
         """convert to a json serializable dictionary
@@ -185,10 +182,7 @@ class ConfigSpaces(object):
         ret: dict
             a json serializable dictionary
         """
-        ret = []
-        for k, v in self.spaces.items():
-            ret.append((k, v.to_json_dict()))
-        return ret
+        return [(k, v.to_json_dict()) for k, v in self.spaces.items()]
 
     @classmethod
     def from_json_dict(cls, json_dict):

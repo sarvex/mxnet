@@ -73,7 +73,7 @@ def run_activation_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler=
     # Fetch all NN Activation Operators
     mx_activation_ops = get_all_nn_activation_operators()
 
-    # Run benchmarks
-    mx_activation_op_results = run_op_benchmarks(mx_activation_ops, dtype, ctx, profiler, int64_tensor, warmup, runs)
-    return mx_activation_op_results
+    return run_op_benchmarks(
+        mx_activation_ops, dtype, ctx, profiler, int64_tensor, warmup, runs
+    )
     

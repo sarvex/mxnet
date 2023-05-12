@@ -32,10 +32,10 @@ def post_wheel(path):
     """
     Posts mxnet wheel file to PyPI
     """
-    logging.info('Posting {} to PyPI'.format(path))
+    logging.info(f'Posting {path} to PyPI')
     pypi_credentials = get_secret()
 
-    cmd = 'python3 -m twine upload {}'.format(path)
+    cmd = f'python3 -m twine upload {path}'
     version = os.path.basename(path).split('-')[1]
 
     # The PyPI credentials for DEV has username set to 'skipPublish'
@@ -43,7 +43,7 @@ def post_wheel(path):
     # Just print a helpful message
     if pypi_credentials['username'] == 'skipPublish':
         print('In DEV account, skipping publish')
-        print('Would have run: {}'.format(cmd))
+        print(f'Would have run: {cmd}')
         return 0
     elif any(test_version_mark in version for test_version_mark in ['a', 'b', 'dev']):
         print('Skipping publishing nightly builds to Pypi.')

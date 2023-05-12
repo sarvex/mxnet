@@ -43,9 +43,10 @@ def _check_event_handlers(handlers):
         handlers = [handlers]
     else:
         handlers = handlers or []
-        if not all([isinstance(handler, EventHandler) for handler in handlers]):
-            raise ValueError("handlers must be an EventHandler or a list of EventHandler, "
-                             "got: {}".format(handlers))
+        if not all(isinstance(handler, EventHandler) for handler in handlers):
+            raise ValueError(
+                f"handlers must be an EventHandler or a list of EventHandler, got: {handlers}"
+            )
     return handlers
 
 
@@ -309,11 +310,7 @@ class LoggingHandler(TrainBegin, TrainEnd, EpochBegin, EpochEnd, BatchBegin, Bat
 
     def epoch_begin(self, estimator, *args, **kwargs):
         if isinstance(self.log_interval, int) or self.log_interval == 'epoch':
-            is_training = False
-            # use the name hack defined in __init__() of estimator class
-            for metric in self.metrics:
-                if 'training' in metric.name:
-                    is_training = True
+            is_training = any('training' in metric.name for metric in self.metrics)
             self.epoch_start = time.time()
             if is_training:
                 estimator.logger.info("[Epoch %d] Begin, current learning rate: %.4f",
@@ -417,20 +414,16 @@ class CheckpointHandler(TrainBegin, BatchEnd, EpochEnd):
             elif mode == 'max':
                 self.monitor_op = np.greater
                 self.best = -np.Inf
+            elif 'acc' or 'f1' in self.monitor.get()[0].lower():
+                warnings.warn(
+                    f"`greater` operator will be used to determine if {self.monitor.get()[0]} has improved. Please specify `mode='min'` to use the `less` operator. Specify `mode='max' to disable this warning.`"
+                )
+                self.monitor_op = np.greater
             else:
-                # use greater for accuracy and f1 and less otherwise
-                if 'acc' or 'f1' in self.monitor.get()[0].lower():
-                    warnings.warn("`greater` operator will be used to determine if {} has improved. "
-                                  "Please specify `mode='min'` to use the `less` operator. "
-                                  "Specify `mode='max' to disable this warning.`"
-                                  .format(self.monitor.get()[0]))
-                    self.monitor_op = np.greater
-                else:
-                    warnings.warn("`less` operator will be used to determine if {} has improved. "
-                                  "Please specify `mode='max'` to use the `greater` operator. "
-                                  "Specify `mode='min' to disable this warning.`"
-                                  .format(self.monitor.get()[0]))
-                    self.monitor_op = np.less
+                warnings.warn(
+                    f"`less` operator will be used to determine if {self.monitor.get()[0]} has improved. Please specify `mode='max'` to use the `greater` operator. Specify `mode='min' to disable this warning.`"
+                )
+                self.monitor_op = np.less
 
     def train_begin(self, estimator, *args, **kwargs):
         # reset all counters
@@ -491,27 +484,25 @@ class CheckpointHandler(TrainBegin, BatchEnd, EpochEnd):
                     'Skipping save best because %s is not updated, make sure you pass one of the '
                     'metric objects estimator.train_metrics and estimator.val_metrics as monitor',
                     monitor_name))
-            else:
-                if self.monitor_op(monitor_value, self.best):
-                    prefix = self.model_prefix + '-best'
-                    self._save_params_and_trainer(estimator, prefix)
-                    if self.verbose > 0:
-                        estimator.logger.info('[Epoch %d] CheckpointHandler: '
-                                              '%s improved from %0.5f to %0.5f, '
-                                              'updating best model at %s with prefix: %s',
-                                              self.current_epoch, monitor_name,
-                                              self.best, monitor_value, self.model_dir, prefix)
-                    self.best = monitor_value
-                else:
-                    if self.verbose > 0:
-                        estimator.logger.info('[Epoch %d] CheckpointHandler: '
-                                              '%s did not improve from %0.5f, '
-                                              'skipping updating best model',
-                                              self.current_batch, monitor_name,
-                                              self.best)
+            elif self.monitor_op(monitor_value, self.best):
+                prefix = f'{self.model_prefix}-best'
+                self._save_params_and_trainer(estimator, prefix)
+                if self.verbose > 0:
+                    estimator.logger.info('[Epoch %d] CheckpointHandler: '
+                                          '%s improved from %0.5f to %0.5f, '
+                                          'updating best model at %s with prefix: %s',
+                                          self.current_epoch, monitor_name,
+                                          self.best, monitor_value, self.model_dir, prefix)
+                self.best = monitor_value
+            elif self.verbose > 0:
+                estimator.logger.info('[Epoch %d] CheckpointHandler: '
+                                      '%s did not improve from %0.5f, '
+                                      'skipping updating best model',
+                                      self.current_batch, monitor_name,
+                                      self.best)
 
     def _save_symbol(self, estimator):
-        symbol_file = os.path.join(self.model_dir, self.model_prefix + '-symbol.json')
+        symbol_file = os.path.join(self.model_dir, f'{self.model_prefix}-symbol.json')
         if hasattr(estimator.net, '_cached_graph') and estimator.net._cached_graph:
             sym = estimator.net._cached_graph[1]
             sym.save(symbol_file)
@@ -523,8 +514,8 @@ class CheckpointHandler(TrainBegin, BatchEnd, EpochEnd):
                 symbol_file)
 
     def _save_params_and_trainer(self, estimator, file_prefix):
-        param_file = os.path.join(self.model_dir, file_prefix + '.params')
-        trainer_file = os.path.join(self.model_dir, file_prefix + '.states')
+        param_file = os.path.join(self.model_dir, f'{file_prefix}.params')
+        trainer_file = os.path.join(self.model_dir, f'{file_prefix}.states')
         estimator.net.save_parameters(param_file)
         estimator.trainer.save_states(trainer_file)
 
@@ -539,7 +530,7 @@ class CheckpointHandler(TrainBegin, BatchEnd, EpochEnd):
                     os.remove(os.path.join(self.model_dir, fname))
 
     def _resume_from_checkpoint(self, estimator):
-        prefix = self.model_prefix + '-epoch'
+        prefix = f'{self.model_prefix}-epoch'
         self.trained_epoch = self._find_max_iteration(
             dir=self.model_dir,
             prefix=prefix,
@@ -562,7 +553,7 @@ class CheckpointHandler(TrainBegin, BatchEnd, EpochEnd):
             estimator.logger.info(msg)
         else:
             msg = f"CheckpointHandler: Checkpoint resumed from epoch {self.trained_epoch} batch {self.trained_batch}, " \
-                  "continue to train for "
+                      "continue to train for "
             # change maximum number of epoch or batch to train if resumed from epoch checkpoint
             if estimator.max_epoch:
                 if self.trained_epoch >= estimator.max_epoch - 1:
@@ -577,9 +568,9 @@ class CheckpointHandler(TrainBegin, BatchEnd, EpochEnd):
                 estimator.max_batch = estimator.max_batch - self.trained_batch - 1
                 msg += f"{estimator.max_batch} batches "
             # load checkpoint
-            param_file = "{}-epoch{}batch{}.params".format(self.model_prefix, self.trained_epoch, self.trained_batch)
+            param_file = f"{self.model_prefix}-epoch{self.trained_epoch}batch{self.trained_batch}.params"
             param_file = os.path.join(self.model_dir, param_file)
-            trainer_file = "{}-epoch{}batch{}.states".format(self.model_prefix, self.trained_epoch, self.trained_batch)
+            trainer_file = f"{self.model_prefix}-epoch{self.trained_epoch}batch{self.trained_batch}.states"
             trainer_file = os.path.join(self.model_dir, trainer_file)
             assert os.path.exists(param_file), f"Failed to load checkpoint, {param_file} does not exist"
             assert os.path.exists(trainer_file), f"Failed to load checkpoint, {trainer_file} does not exist"
@@ -663,19 +654,16 @@ class EarlyStoppingHandler(TrainBegin, EpochEnd, TrainEnd):
             self.monitor_op = np.less
         elif mode == 'max':
             self.monitor_op = np.greater
+        elif 'acc' or 'f1' in self.monitor.get()[0].lower():
+            warnings.warn(
+                f"`greater` operator will be used to determine if {self.monitor.get()[0]} has improved. Please specify `mode='min'` to use the `less` operator. Specify `mode='max' to disable this warning.`"
+            )
+            self.monitor_op = np.greater
         else:
-            if 'acc' or 'f1' in self.monitor.get()[0].lower():
-                warnings.warn("`greater` operator will be used to determine if {} has improved. "
-                              "Please specify `mode='min'` to use the `less` operator. "
-                              "Specify `mode='max' to disable this warning.`"
-                              .format(self.monitor.get()[0]))
-                self.monitor_op = np.greater
-            else:
-                warnings.warn("`less` operator will be used to determine if {} has improved. "
-                              "Please specify `mode='max'` to use the `greater` operator. "
-                              "Specify `mode='min' to disable this warning.`"
-                              .format(self.monitor.get()[0]))
-                self.monitor_op = np.less
+            warnings.warn(
+                f"`less` operator will be used to determine if {self.monitor.get()[0]} has improved. Please specify `mode='max'` to use the `greater` operator. Specify `mode='min' to disable this warning.`"
+            )
+            self.monitor_op = np.less
 
         if self.monitor_op == np.greater:  # pylint: disable=comparison-with-callable
             self.min_delta *= 1
@@ -698,15 +686,14 @@ class EarlyStoppingHandler(TrainBegin, EpochEnd, TrainEnd):
             warnings.warn(RuntimeWarning(
                 '%s is not updated, make sure you pass one of the metric objects from'
                 'estimator.train_metrics and estimator.val_metrics as monitor.', monitor_name))
+        elif self.monitor_op(monitor_value - self.min_delta, self.best):
+            self.best = monitor_value
+            self.wait = 0
         else:
-            if self.monitor_op(monitor_value - self.min_delta, self.best):
-                self.best = monitor_value
-                self.wait = 0
-            else:
-                self.wait += 1
-                if self.wait >= self.patience:
-                    self.stopped_epoch = self.current_epoch
-                    self.stop_training = True
+            self.wait += 1
+            if self.wait >= self.patience:
+                self.stopped_epoch = self.current_epoch
+                self.stop_training = True
         self.current_epoch += 1
         return self.stop_training
 

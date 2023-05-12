@@ -251,7 +251,7 @@ def train(opt, device):
         # save model if meet requirements
         save_checkpoint(epoch, val_acc[0], best_acc)
     if num_epochs > 1:
-        print('Average epoch time: {}'.format(float(total_time)/(num_epochs - 1)))
+        print(f'Average epoch time: {float(total_time) / (num_epochs - 1)}')
 
 def main():
     if opt.builtin_profiler > 0:

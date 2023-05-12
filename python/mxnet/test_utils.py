@@ -188,9 +188,7 @@ def random_arrays(*shapes):
     arrays = [np.array(np.random.randn(), dtype=default_dtype())
               if len(s) == 0 else np.random.randn(*s).astype(default_dtype())
               for s in shapes]
-    if len(arrays) == 1:
-        return arrays[0]
-    return arrays
+    return arrays[0] if len(arrays) == 1 else arrays
 
 
 def random_uniform_arrays(*shapes, **kwargs):
@@ -198,11 +196,9 @@ def random_uniform_arrays(*shapes, **kwargs):
     low = kwargs.pop('low', 0.0)
     high = kwargs.pop('high', 1.0)
     dtype = kwargs.pop('dtype', default_dtype())
-    if len(kwargs) > 0:
-        raise TypeError('Got unexpected argument/s : ' + str(kwargs.keys()))
-    arrays = [np.random.uniform(low, high, size=s).astype(dtype)
-              for s in shapes]
-    return arrays
+    if kwargs:
+        raise TypeError(f'Got unexpected argument/s : {str(kwargs.keys())}')
+    return [np.random.uniform(low, high, size=s).astype(dtype) for s in shapes]
 
 
 def random_sample(population, k):
@@ -210,7 +206,7 @@ def random_sample(population, k):
     assert 0 <= k <= len(population)
     population_copy = population[:]
     np.random.shuffle(population_copy)
-    return population_copy[0:k]
+    return population_copy[:k]
 
 
 def _sorted_items(d):
@@ -234,12 +230,11 @@ def _validate_csr_generation_inputs(num_rows, num_cols, density,
     if num_rows <= 0 or num_cols <= 0:
         raise ValueError("num_rows or num_cols should be greater than 0")
 
-    if distribution == "powerlaw":
-        if total_nnz < 2 * num_rows:
-            raise ValueError(f"not supported for this density: {density}"
-                             f" for this shape ({num_rows}, {num_cols})"
-                             " Please keep :"
-                             " num_rows * num_cols * density >= 2 * num_rows")
+    if distribution == "powerlaw" and total_nnz < 2 * num_rows:
+        raise ValueError(f"not supported for this density: {density}"
+                         f" for this shape ({num_rows}, {num_cols})"
+                         " Please keep :"
+                         " num_rows * num_cols * density >= 2 * num_rows")
 
 
 def shuffle_csr_column_indices(csr):
@@ -385,13 +380,11 @@ def create_2d_np_tensor(rows, columns, dtype=np.int64):
 # For testing Large Tensors having total size > 2^32 elements
 def create_2d_tensor(rows, columns, dtype=np.int64):
     a = mx.nd.arange(0, rows, dtype=dtype).reshape(rows, 1)
-    b = mx.nd.broadcast_to(a, shape=(a.shape[0], columns))
-    return b
+    return mx.nd.broadcast_to(a, shape=(a.shape[0], columns))
 
 # For testing Large Vectors having total size > 2^32 elements
 def create_vector(size, dtype=np.int64):
-    a = mx.nd.arange(0, size, dtype=dtype)
-    return a
+    return mx.nd.arange(0, size, dtype=dtype)
 
 def rand_sparse_ndarray(shape, stype, density=None, dtype=None, distribution=None,
                         data_init=None, rsp_indices=None, modifier_func=None,
@@ -520,7 +513,7 @@ def create_sparse_array(shape, stype, data_init=None, rsp_indices=None,
                                                   modifier_func=modifier_func,
                                                   shuffle_csr_indices=shuffle_csr_indices)
     else:
-        msg = "Unknown storage type: " + stype
+        msg = f"Unknown storage type: {stype}"
         raise AssertionError(msg)
 
     return arr_data
@@ -620,9 +613,10 @@ def same(a, b):
 
 def checkShapes(a, b):
     if a.shape != b.shape:
-        msg = npt.build_err_msg([a, b],
-                                err_msg="a.shape = {} and b.shape = {} are not equal"
-                                .format(str(a.shape), str(b.shape)))
+        msg = npt.build_err_msg(
+            [a, b],
+            err_msg=f"a.shape = {str(a.shape)} and b.shape = {str(b.shape)} are not equal",
+        )
         raise AssertionError(msg)
 
 
@@ -679,13 +673,17 @@ def assert_almost_equal(a, b, rtol=None, atol=None, names=('a', 'b'), equal_nan=
     if isinstance(b, mx.numpy.ndarray):
         b = b.asnumpy()
     use_np_allclose = isinstance(a, np.ndarray) and isinstance(b, np.ndarray)
-    if not use_np_allclose:
-        if not (hasattr(a, 'ctx') and hasattr(b, 'ctx') and a.device == b.device and a.dtype == b.dtype):
-            use_np_allclose = True
-            if isinstance(a, mx.nd.NDArray):
-                a = a.asnumpy()
-            if isinstance(b, mx.nd.NDArray):
-                b = b.asnumpy()
+    if not use_np_allclose and not (
+        hasattr(a, 'ctx')
+        and hasattr(b, 'ctx')
+        and a.device == b.device
+        and a.dtype == b.dtype
+    ):
+        use_np_allclose = True
+        if isinstance(a, mx.nd.NDArray):
+            a = a.asnumpy()
+        if isinstance(b, mx.nd.NDArray):
+            b = b.asnumpy()
 
     if use_np_allclose:
         if hasattr(a, 'dtype') and a.dtype == np.bool_ and hasattr(b, 'dtype') and b.dtype == np.bool_:
@@ -707,7 +705,9 @@ def assert_almost_equal(a, b, rtol=None, atol=None, names=('a', 'b'), equal_nan=
         indexErr = index
         relErr = rel
 
-        print('\n*** Maximum errors for vector of size {}:  rtol={}, atol={}\n'.format(a.size, rtol, atol))
+        print(
+            f'\n*** Maximum errors for vector of size {a.size}:  rtol={rtol}, atol={atol}\n'
+        )
         aTmp = a.copy()
         bTmp = b.copy()
         i = 1
@@ -778,7 +778,9 @@ def assert_almost_equal_with_err(a, b, rtol=None, atol=None, etol=None,
             indexErr = index
             relErr = rel
 
-            print('\n*** Maximum errors for vector of size {}:  rtol={}, atol={}\n'.format(a.size, rtol, atol))
+            print(
+                f'\n*** Maximum errors for vector of size {a.size}:  rtol={rtol}, atol={atol}\n'
+            )
             aTmp = a.copy()
             bTmp = b.copy()
             i = 1
@@ -887,13 +889,14 @@ def _parse_location(sym, location, ctx, dtype=default_dtype()):
     ValueError: Symbol arguments and keys of the given location do not match.
     """
     assert isinstance(location, (dict, list, tuple))
-    assert dtype == "asnumpy" or dtype in (np.float16, np.float32, np.float64)
+    assert dtype in ("asnumpy", np.float16, np.float32, np.float64)
     if isinstance(location, dict):
         if set(location.keys()) != set(sym.list_arguments()):
-            raise ValueError("Symbol arguments and keys of the given location do not match."
-                             f"symbol args:{str(set(sym.list_arguments()))}, location.keys():{str(set(location.keys()))}")
+            raise ValueError(
+                f"Symbol arguments and keys of the given location do not match.symbol args:{set(sym.list_arguments())}, location.keys():{set(location.keys())}"
+            )
     else:
-        location = {k: v for k, v in zip(sym.list_arguments(), location)}
+        location = dict(zip(sym.list_arguments(), location))
     location = {k: mx.nd.array(v, ctx=ctx, dtype=v.dtype if dtype == "asnumpy" else dtype) \
                if isinstance(v, np.ndarray) else v for k, v in location.items()}
     return _sorted_dict(location)
@@ -948,15 +951,16 @@ def _parse_aux_states(sym, aux_states, ctx, dtype=default_dtype()):
     >>> _parse_aux_states(fc2, {'batchnorm0_moving_var': mean_states}, None)
     ValueError: Symbol aux_states names and given aux_states do not match.
     """
-    assert dtype == "asnumpy" or dtype in (np.float16, np.float32, np.float64)
+    assert dtype in ("asnumpy", np.float16, np.float32, np.float64)
     if aux_states is not None:
         if isinstance(aux_states, dict):
             if set(aux_states.keys()) != set(sym.list_auxiliary_states()):
-                raise ValueError("Symbol aux_states names and given aux_states do not match."
-                                 f"symbol aux_names:{str(set(sym.list_auxiliary_states()))}, aux_states.keys:{str(set(aux_states.keys()))}")
+                raise ValueError(
+                    f"Symbol aux_states names and given aux_states do not match.symbol aux_names:{set(sym.list_auxiliary_states())}, aux_states.keys:{set(aux_states.keys())}"
+                )
         elif isinstance(aux_states, (list, tuple)):
             aux_names = sym.list_auxiliary_states()
-            aux_states = {k:v for k, v in zip(aux_names, aux_states)}
+            aux_states = dict(zip(aux_names, aux_states))
         aux_states = {k: mx.nd.array(v, ctx=ctx, dtype=v.dtype if dtype == "asnumpy" else dtype) \
                       for k, v in aux_states.items()}
     return aux_states
@@ -1118,7 +1122,7 @@ def check_numeric_gradient(sym, location, aux_states=None, numeric_eps=None, rto
     input_shape = {k: v.shape for k, v in location.items()}
     _, out_shape, _ = sym.infer_shape(**input_shape)
     proj = mx.sym.Variable("__random_proj")
-    is_np_sym = bool(isinstance(sym, np_symbol))
+    is_np_sym = isinstance(sym, np_symbol)
     if is_np_sym:  # convert to np symbol for using element-wise multiplication
         proj = proj.as_np_ndarray()
     out = sym * proj
@@ -1240,7 +1244,7 @@ def check_symbolic_forward(sym, location, expected, rtol=None, atol=None,
     >>> ret_expected = np.array([[19, 22], [43, 50]])
     >>> check_symbolic_forward(sym_dot, [mat1, mat2], [ret_expected])
     """
-    assert dtype == "asnumpy" or dtype in (np.float16, np.float32, np.float64)
+    assert dtype in ("asnumpy", np.float16, np.float32, np.float64)
     if ctx is None:
         ctx = default_device()
 
@@ -1331,7 +1335,7 @@ def check_symbolic_backward(sym, location, out_grads, expected, rtol=None, atol=
     >>> grad_expected = ograd.copy().asnumpy()
     >>> check_symbolic_backward(sym_add, [mat1, mat2], [ograd], [grad_expected, grad_expected])
     """
-    assert dtype == 'asnumpy' or dtype in (np.float16, np.float32, np.float64)
+    assert dtype in ('asnumpy', np.float16, np.float32, np.float64)
     if ctx is None:
         ctx = default_device()
 
@@ -1339,7 +1343,7 @@ def check_symbolic_backward(sym, location, out_grads, expected, rtol=None, atol=
     aux_states = _parse_aux_states(sym=sym, aux_states=aux_states, ctx=ctx,
                                    dtype=dtype)
     if isinstance(expected, (list, tuple)):
-        expected = {k:v for k, v in zip(sym.list_arguments(), expected)}
+        expected = dict(zip(sym.list_arguments(), expected))
 
     # Dirty the output buffer deterministically, for reproducibility.
     args_grad_npy = {k:np.random.normal(size=v.shape) for k, v in _sorted_items(expected)}
@@ -1359,14 +1363,14 @@ def check_symbolic_backward(sym, location, out_grads, expected, rtol=None, atol=
     if isinstance(grad_req, str):
         grad_req = {k:grad_req for k in sym.list_arguments()}
     elif isinstance(grad_req, (list, tuple)):
-        grad_req = {k:v for k, v in zip(sym.list_arguments(), grad_req)}
+        grad_req = dict(zip(sym.list_arguments(), grad_req))
 
     executor = sym._bind(ctx=ctx, args=location, args_grad=args_grad_data,
                          aux_states=aux_states, grad_req=grad_req)
     outputs = executor.forward(is_train=True)
 
     if isinstance(out_grads, (tuple, list)):
-        outg = list()
+        outg = []
         for i, arr in enumerate(out_grads):
             stype = outputs[i].stype
             if isinstance(arr, np.ndarray):
@@ -1376,7 +1380,7 @@ def check_symbolic_backward(sym, location, out_grads, expected, rtol=None, atol=
                 outg.append(arr.tostype(stype))
         out_grads = outg
     elif isinstance(out_grads, dict):
-        outg = dict()
+        outg = {}
         for k, v in out_grads.items():
             if isinstance(v, np.ndarray):
                 dtype = v.dtype if dtype == "asnumpy" else dtype
@@ -1462,8 +1466,7 @@ def check_speed(sym, location=None, ctx=None, N=20, grad_req=None, typ="whole",
             exe.backward(out_grads=exe.outputs)
         mx.nd.waitall()
         toc = time.time()
-        forward_backward_time = (toc - tic) * 1.0 / N
-        return forward_backward_time
+        return (toc - tic) * 1.0 / N
     elif typ == "forward":
         # Warm up
         exe.forward(is_train=False)
@@ -1476,8 +1479,7 @@ def check_speed(sym, location=None, ctx=None, N=20, grad_req=None, typ="whole",
             exe.forward(is_train=False)
         mx.nd.waitall()
         toc = time.time()
-        forward_time = (toc - tic) * 1.0 / N
-        return forward_time
+        return (toc - tic) * 1.0 / N
     else:
         raise ValueError('typ can only be "whole" or "forward".')
 
@@ -1616,7 +1618,7 @@ def check_consistency(sym, ctx_list, scale=1.0, grad_req='write',
                 if raise_on_err:
                     raise e
 
-                print(str(e))
+                print(e)
 
     # train
     if grad_req != 'null':
@@ -1673,7 +1675,7 @@ def check_consistency(sym, ctx_list, scale=1.0, grad_req='write',
                     if raise_on_err:
                         raise e
 
-                    print(str(e))
+                    print(e)
 
     return gt
 
@@ -1724,20 +1726,19 @@ def download(url, fname=None, dirname=None, overwrite=False, retries=5):
         dirname = os.path.dirname(fname)
     else:
         fname = os.path.join(dirname, fname)
-    if dirname != "":
-        if not os.path.exists(dirname):
-            try:
-                logging.info('create directory %s', dirname)
-                os.makedirs(dirname)
-            except OSError as exc:
-                if exc.errno != errno.EEXIST:
-                    raise OSError('failed to create ' + dirname)
+    if dirname != "" and not os.path.exists(dirname):
+        try:
+            logging.info('create directory %s', dirname)
+            os.makedirs(dirname)
+        except OSError as exc:
+            if exc.errno != errno.EEXIST:
+                raise OSError(f'failed to create {dirname}')
 
     if not overwrite and os.path.exists(fname):
         logging.info("%s exists, skipping download", fname)
         return fname
 
-    while retries+1 > 0:
+    while retries > -1:
         # Disable pyling too broad Exception
         # pylint: disable=W0703
         try:
@@ -1753,8 +1754,9 @@ def download(url, fname=None, dirname=None, overwrite=False, retries=5):
             if retries <= 0:
                 raise e
 
-            print("download failed, retrying, {} attempt{} left"
-                  .format(retries, 's' if retries > 1 else ''))
+            print(
+                f"download failed, retrying, {retries} attempt{'s' if retries > 1 else ''} left"
+            )
     logging.info("downloaded %s into %s successfully", url, fname)
     return fname
 
@@ -1787,9 +1789,13 @@ def get_mnist(path='data'):
     # changed to mxnet.io for more stable hosting
     url_path = 'https://repo.mxnet.io/gluon/dataset/mnist/'
     (train_lbl, train_img) = read_data(
-        url_path+'train-labels-idx1-ubyte.gz', url_path+'train-images-idx3-ubyte.gz')
+        f'{url_path}train-labels-idx1-ubyte.gz',
+        f'{url_path}train-images-idx3-ubyte.gz',
+    )
     (test_lbl, test_img) = read_data(
-        url_path+'t10k-labels-idx1-ubyte.gz', url_path+'t10k-images-idx3-ubyte.gz')
+        f'{url_path}t10k-labels-idx1-ubyte.gz',
+        f'{url_path}t10k-images-idx3-ubyte.gz',
+    )
     return {'train_data':train_img, 'train_label':train_lbl,
             'test_data':test_img, 'test_label':test_lbl}
 
@@ -1805,7 +1811,7 @@ def get_mnist_ubyte(path='data'):
         get_mnist(path)
         for f in files:
             ubyte_file_path = os.path.join(path, f)
-            zip_file_path = ubyte_file_path + '.gz'
+            zip_file_path = f'{ubyte_file_path}.gz'
             with gzip.GzipFile(zip_file_path) as zf:
                 with open(ubyte_file_path, 'wb') as ubyte_file:
                     ubyte_file.write(zf.read())
@@ -2026,9 +2032,9 @@ def mean_check(generator, mu, sigma, nsamples=1000000):
     """
     samples = np.array(generator(nsamples))
     sample_mean = samples.mean()
-    ret = (sample_mean > mu - 3 * sigma / np.sqrt(nsamples)) and\
-          (sample_mean < mu + 3 * sigma / np.sqrt(nsamples))
-    return ret
+    return (sample_mean > mu - 3 * sigma / np.sqrt(nsamples)) and (
+        sample_mean < mu + 3 * sigma / np.sqrt(nsamples)
+    )
 
 def get_im2rec_path(home_env="MXNET_HOME"):
     """Get path to the im2rec.py tool
@@ -2095,9 +2101,11 @@ def var_check(generator, sigma, nsamples=1000000):
     """
     samples = np.array(generator(nsamples))
     sample_var = samples.var(ddof=1)
-    ret = (sample_var > sigma ** 2 - 3 * np.sqrt(2 * sigma ** 4 / (nsamples - 1))) and\
-          (sample_var < sigma ** 2 + 3 * np.sqrt(2 * sigma ** 4 / (nsamples - 1)))
-    return ret
+    return (
+        sample_var > sigma**2 - 3 * np.sqrt(2 * sigma**4 / (nsamples - 1))
+    ) and (
+        sample_var < sigma**2 + 3 * np.sqrt(2 * sigma**4 / (nsamples - 1))
+    )
 
 def chi_square_check(generator, buckets, probs, nsamples=1000000):
     """Run the chi-square test for the generator. The generator can be both continuous and discrete.
@@ -2219,9 +2227,9 @@ def verify_generator(generator, buckets, probs, nsamples=1000000, nrepeat=5, suc
         expected_freq_l.append(expected_freq)
     success_num = (np.array(cs_ret_l) > alpha).sum()
     if success_num < nrepeat * success_rate:
-        raise AssertionError(f"Generator test fails, Chi-square p={str(cs_ret_l)}, "
-                             f"obs_freq={str(obs_freq_l)}, expected_freq={str(expected_freq_l)}."
-                             f"\nbuckets={str(buckets)}, probs={str(probs)}")
+        raise AssertionError(
+            f"Generator test fails, Chi-square p={cs_ret_l}, obs_freq={obs_freq_l}, expected_freq={expected_freq_l}.\nbuckets={str(buckets)}, probs={str(probs)}"
+        )
     return cs_ret_l
 
 
@@ -2342,10 +2350,7 @@ def same_symbol_structure(sym1, sym2):
     nodes = conf["nodes"]
     conf2 = json.loads(sym2.tojson())
     nodes2 = conf2["nodes"]
-    for node1, node2 in zip(nodes, nodes2):
-        if node1["op"] != node2["op"]:
-            return False
-    return True
+    return all(node1["op"] == node2["op"] for node1, node2 in zip(nodes, nodes2))
 
 
 @contextmanager
@@ -2430,10 +2435,8 @@ def collapse_sum_like(a, shape):
     assert len(a.shape) >= len(shape)
     if np.prod(shape) == 0 or a.size == 0:
         return np.zeros(shape, dtype=a.dtype)
-    axes = []
     ndim_diff = len(a.shape) - len(shape)
-    for i in range(ndim_diff):
-        axes.append(i)
+    axes = list(range(ndim_diff))
     for i, s in enumerate(shape):
         if s != a.shape[i+ndim_diff]:
             assert s == 1
@@ -2459,10 +2462,11 @@ def has_tvm_ops():
         try:
             cc = get_cuda_compute_capability(device)
         except:  # pylint: disable=bare-except
-            print('Failed to get CUDA compute capability for context {}. The operators '
-                  'built with USE_TVM_OP=1 will not be run in unit tests.'.format(device))
+            print(
+                f'Failed to get CUDA compute capability for context {device}. The operators built with USE_TVM_OP=1 will not be run in unit tests.'
+            )
             return False
-        print('Cuda arch compute capability: sm_{}'.format(str(cc)))
+        print(f'Cuda arch compute capability: sm_{str(cc)}')
         return built_with_tvm_op and cc >= 53
     return built_with_tvm_op
 
@@ -2476,15 +2480,15 @@ def is_op_runnable():
     if device.device_type == 'gpu':
         if not _features.is_enabled("TVM_OP"):
             return True
-        else:
-            try:
-                cc = get_cuda_compute_capability(device)
-            except:  # pylint: disable=bare-except
-                print('Failed to get CUDA compute capability for context {}. The operators '
-                      'built with USE_TVM_OP=1 will not be run in unit tests.'.format(device))
-                return False
-            print('Cuda arch compute capability: sm_{}'.format(str(cc)))
-            return cc >= 53
+        try:
+            cc = get_cuda_compute_capability(device)
+        except:  # pylint: disable=bare-except
+            print(
+                f'Failed to get CUDA compute capability for context {device}. The operators built with USE_TVM_OP=1 will not be run in unit tests.'
+            )
+            return False
+        print(f'Cuda arch compute capability: sm_{str(cc)}')
+        return cc >= 53
     return True
 
 
@@ -2577,7 +2581,9 @@ def new_matrix_with_real_eigvals_2d(n):
 def new_matrix_with_real_eigvals_nd(shape):
     """Generate well-conditioned matrices with small real eigenvalues."""
     n = int(np.prod(shape[:-2])) if len(shape) > 2 else 1
-    return np.array([new_matrix_with_real_eigvals_2d(shape[-1]) for i in range(n)]).reshape(shape)
+    return np.array(
+        [new_matrix_with_real_eigvals_2d(shape[-1]) for _ in range(n)]
+    ).reshape(shape)
 
 
 def new_orthonormal_matrix_2d(n):
@@ -2598,4 +2604,6 @@ def new_sym_matrix_with_real_eigvals_2d(n):
 def new_sym_matrix_with_real_eigvals_nd(shape):
     """Generate sym matrices with real eigenvalues."""
     n = int(np.prod(shape[:-2])) if len(shape) > 2 else 1
-    return np.array([new_sym_matrix_with_real_eigvals_2d(shape[-1]) for i in range(n)]).reshape(shape)
+    return np.array(
+        [new_sym_matrix_with_real_eigvals_2d(shape[-1]) for _ in range(n)]
+    ).reshape(shape)

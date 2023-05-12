@@ -57,6 +57,12 @@ def run_mx_reduction_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profile
     """
     # Fetch all Reduction Operators
     mx_reduction_broadcast_ops = get_all_reduction_operators()
-    # Run benchmarks
-    mx_reduction_op_results = run_op_benchmarks(mx_reduction_broadcast_ops, dtype, ctx, profiler, int64_tensor, warmup, runs)
-    return mx_reduction_op_results
+    return run_op_benchmarks(
+        mx_reduction_broadcast_ops,
+        dtype,
+        ctx,
+        profiler,
+        int64_tensor,
+        warmup,
+        runs,
+    )

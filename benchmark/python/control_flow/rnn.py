@@ -123,7 +123,7 @@ def main():
                   gluon.rnn.LSTMCell]
     ctxs = [mx.cpu(0)]
     if args.gpu:
-        ctxs = ctxs + [mx.gpu(i) for i in _get_gpus()]
+        ctxs += [mx.gpu(i) for i in _get_gpus()]
     seq_lens = [100]
     batch_sizes = [1, 32]
     hidden_dims = [512]

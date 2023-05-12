@@ -51,10 +51,14 @@ def get_from_gluon(model_name, classes=1000, logger=None):
 
 
 def regex_find_excluded_symbols(patterns_dict, model_name):
-    for key, value in patterns_dict.items():
-        if re.search(key, model_name) is not None:
-            return value
-    return None
+    return next(
+        (
+            value
+            for key, value in patterns_dict.items()
+            if re.search(key, model_name) is not None
+        ),
+        None,
+    )
 
 
 def get_exclude_symbols(model_name, exclude_first_conv):

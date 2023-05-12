@@ -20,19 +20,14 @@ import os
 import re
 
 def has_token(token, lines):
-    for line in lines:
-        if token in line:
-            return True
-    return False
+    return any(token in line for line in lines)
 
 def get_next_title_mark(lines):
     available_marks = ['=', '-', '~', '^']
-    for mark in available_marks:
-        if has_token(mark*3, lines):
-            continue
-        else:
-            return mark
-    return None
+    return next(
+        (mark for mark in available_marks if not has_token(mark * 3, lines)),
+        None,
+    )
 
 def add_hidden_title(inputs):
     """
@@ -66,7 +61,7 @@ def add_hidden_title(inputs):
     for line in lines:
         m = FUNC.match(line)
         if m is not None:
-            name = ':hidden:`' + m.groups()[0] + '`'
+            name = f':hidden:`{m.groups()[0]}`'
             outputs += '\n' + name + '\n' + mark * len(name) + '\n\n'
             num += 1
         outputs += line + '\n'

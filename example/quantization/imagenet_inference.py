@@ -149,8 +149,8 @@ if __name__ == '__main__':
     rgb_std = [float(i) for i in rgb_std.split(',')]
 
     image_shape = args.image_shape
-    data_shape = tuple([int(i) for i in image_shape.split(',')])
-    logger.info(f'Input data shape = {str(data_shape)}')
+    data_shape = tuple(int(i) for i in image_shape.split(','))
+    logger.info(f'Input data shape = {data_shape}')
 
     data_layer_type = args.data_layer_type
 

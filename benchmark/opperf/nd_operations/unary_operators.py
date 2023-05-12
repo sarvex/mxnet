@@ -70,11 +70,7 @@ def run_mx_unary_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='n
     int64_tensor_inputs = [{"args": [(2**32, 1)],
                             "num_outputs":1}]
 
-    if int64_tensor == 'on':
-        inputs = int64_tensor_inputs
-    else:
-        inputs = standard_inputs
-
+    inputs = int64_tensor_inputs if int64_tensor == 'on' else standard_inputs
     # Run amp_multicast as it needs data as positional argument
     amp_multicast_benchmark = run_performance_test([getattr(MX_OP_MODULE, "amp_multicast")],
                                                    run_backward=True,

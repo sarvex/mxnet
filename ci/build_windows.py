@@ -139,14 +139,14 @@ CMAKE_FLAGS = {
 
 
 def windows_build(args):
-    logging.info("Using vcvars environment:\n{}".format(args.vcvars))
+    logging.info(f"Using vcvars environment:\n{args.vcvars}")
     if args.vcvars_ver:
-        logging.info("Using vcvars version:\n{}".format(args.vcvars_ver))
+        logging.info(f"Using vcvars version:\n{args.vcvars_ver}")
 
     path = args.output
 
     mxnet_root = get_mxnet_root()
-    logging.info("Found MXNet root: {}".format(mxnet_root))
+    logging.info(f"Found MXNet root: {mxnet_root}")
 
     # cuda thrust / CUB + VS 2019 is flaky: try multiple times if fail
     MAXIMUM_TRY = 1
@@ -163,22 +163,17 @@ def windows_build(args):
             if 'GPU' in args.flavour:
                 env["CXXFLAGS"] = '/FS /MD /O2 /Ob2'
             if not args.vcvars_ver:
-                cmd = "\"{}\" && cmake -GNinja {} {}".format(args.vcvars,
-                                                             CMAKE_FLAGS[args.flavour],
-                                                             mxnet_root)
+                cmd = f'\"{args.vcvars}\" && cmake -GNinja {CMAKE_FLAGS[args.flavour]} {mxnet_root}'
             else:
-                cmd = "\"{}\" -vcvars_ver={} && cmake -GNinja {} {}".format(args.vcvars,
-                                                                            args.vcvars_ver,
-                                                                            CMAKE_FLAGS[args.flavour],
-                                                                            mxnet_root)
-            logging.info("Generating project with CMake:\n{}".format(cmd))
+                cmd = f'\"{args.vcvars}\" -vcvars_ver={args.vcvars_ver} && cmake -GNinja {CMAKE_FLAGS[args.flavour]} {mxnet_root}'
+            logging.info(f"Generating project with CMake:\n{cmd}")
             check_call(cmd, shell=True, env=env)
 
             if not args.vcvars_ver:
-                cmd = "\"{}\" && ninja".format(args.vcvars)
+                cmd = f'\"{args.vcvars}\" && ninja'
             else:
-                cmd = "\"{}\" -vcvars_ver={} && ninja".format(args.vcvars, args.vcvars_ver)
-            logging.info("Building:\n{}".format(cmd))
+                cmd = f'\"{args.vcvars}\" -vcvars_ver={args.vcvars_ver} && ninja'
+            logging.info(f"Building:\n{cmd}")
 
             t0 = int(time.time())
             ret = call(cmd, shell=True)
@@ -186,9 +181,11 @@ def windows_build(args):
 
             if ret != 0:
                 build_try += 1
-                logging.info("{} build(s) have failed".format(build_try))
+                logging.info(f"{build_try} build(s) have failed")
             else:
-                logging.info("Build flavour: {} complete in directory: \"{}\"".format(args.flavour, os.path.abspath(path)))
+                logging.info(
+                    f'Build flavour: {args.flavour} complete in directory: \"{os.path.abspath(path)}\"'
+                )
                 logging.info("Build took {}".format(datetime.timedelta(seconds=int(time.time() - t0))))
                 break
 
@@ -246,8 +243,7 @@ def main():
     logging.getLogger().setLevel(logging.INFO)
     logging.basicConfig(format='%(asctime)-15s %(message)s')
     logging.info("MXNet Windows build helper")
-    instance_info = ec2_instance_info()
-    if instance_info:
+    if instance_info := ec2_instance_info():
         logging.info("EC2: %s", instance_info)
 
     parser = argparse.ArgumentParser()
@@ -294,11 +290,11 @@ def main():
             os.environ["MKLROOT"] = "C:\\Program Files (x86)\\IntelSWTools\\compilers_and_libraries\\windows\\mkl"
         windows_build(args)
 
-    elif system == 'Linux' or system == 'Darwin':
+    elif system in ['Linux', 'Darwin']:
         nix_build(args)
 
     else:
-        logging.error("Don't know how to build for {} yet".format(platform.system()))
+        logging.error(f"Don't know how to build for {platform.system()} yet")
 
     return 0
 

@@ -81,11 +81,7 @@ def run_optimizer_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='
     standard_shape = (5, 5)
     int64_tensor_shape = (2**16, 2**16)
 
-    if int64_tensor == 'on':
-        arg_shape = int64_tensor_shape
-    else:
-        arg_shape = standard_shape
-
+    arg_shape = int64_tensor_shape if int64_tensor == 'on' else standard_shape
     # Run independent tests for ops that need specific input data
     multi_mp_sgd_mom_res = run_performance_test([getattr(MX_OP_MODULE, "multi_mp_sgd_mom_update")],
                                                 inputs=[{"args0": nd.random_normal(shape=arg_shape),

@@ -26,10 +26,9 @@ def compute_dot(A, B):
     K = A.shape[1]
     N = B.shape[1]
     k = tvm.te.reduce_axis((0, K), 'k')
-    C = tvm.te.compute((M, N),
-                    lambda x, y: tvm.tir.sum(A[x, k] * B[k, y], axis=k),
-                    name='C')
-    return C
+    return tvm.te.compute(
+        (M, N), lambda x, y: tvm.tir.sum(A[x, k] * B[k, y], axis=k), name='C'
+    )
 
 
 @defop(name="dot", target="cpu", dtype=AllTypes)

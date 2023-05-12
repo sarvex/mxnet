@@ -59,18 +59,14 @@ class ImageBboxRandomFlipLeftRight(Block):
     def forward(self, img, bbox):
         _check_bbox_shape(bbox)
         if self.p <= 0:
-            return img, bbox
+            pass
         elif self.p >= 1:
             img = self._flip_image(img)
             bbox = self._flip_bbox(img, bbox)
-            return img, bbox
-        else:
-            if self.p < random.random():
-                return img, bbox
-            else:
-                img = self._flip_image(img)
-                bbox = self._flip_bbox(img, bbox)
-                return img, bbox
+        elif self.p >= random.random():
+            img = self._flip_image(img)
+            bbox = self._flip_bbox(img, bbox)
+        return img, bbox
 
     def _flip_image(self, img):
         if is_np_array():
@@ -260,37 +256,26 @@ class ImageBboxRandomExpand(Block):
 
         h, w, c = img.shape
         ratio_x = random.uniform(1, self._max_ratio)
-        if self._keep_ratio:
-            ratio_y = ratio_x
-        else:
-            ratio_y = random.uniform(1, self._max_ratio)
-
+        ratio_y = ratio_x if self._keep_ratio else random.uniform(1, self._max_ratio)
         oh, ow = int(h * ratio_y), int(w * ratio_x)
         off_y = random.randint(0, oh - h)
         off_x = random.randint(0, ow - w)
 
         # make canvas
-        if is_np_array():
-            F = np
-        else:
-            F = nd
+        F = np if is_np_array() else nd
         if isinstance(self._fill, numeric_types):
             dst = F.full(shape=(oh, ow, c), val=self._fill, dtype=img.dtype)
         else:
             fill = F.array(self._fill, dtype=img.dtype, ctx=img.device)
-            if not c == fill.size:
-                raise ValueError("Channel and fill size mismatch, {} vs {}".format(c, fill.size))
+            if c != fill.size:
+                raise ValueError(f"Channel and fill size mismatch, {c} vs {fill.size}")
             dst = F.tile(fill.reshape((1, c)), reps=(oh * ow, 1)).reshape((oh, ow, c))
 
         dst[off_y:off_y+h, off_x:off_x+w, :] = img
 
         # translate bbox
         new_bbox = bbox_translate(bbox.asnumpy(), off_x, off_y)
-        if is_np_array():
-            new_bbox = np.array(new_bbox)
-        else:
-            new_bbox = nd.array(new_bbox)
-
+        new_bbox = np.array(new_bbox) if is_np_array() else nd.array(new_bbox)
         return dst, new_bbox
 
 
@@ -327,12 +312,7 @@ class ImageBboxResize(Block):
         if len(img.shape) != 3:
             raise NotImplementedError('ImageBboxResize only support images in HWC format')
 
-        if self._interp == -1:
-            # random interpolation mode
-            interp = random.randint(0, 5)
-        else:
-            interp = self._interp
-
+        interp = random.randint(0, 5) if self._interp == -1 else self._interp
         if is_np_array():
             new_img = npx.image.resize(img, self._size, False, interp)
             new_bbox = np.array(bbox_resize(bbox.asnumpy(),

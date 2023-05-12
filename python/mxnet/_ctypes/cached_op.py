@@ -45,7 +45,7 @@ class CachedOp(object):
         self._monitor_callback = None
 
         from ..symbol.numpy._symbol import _Symbol
-        self.is_np_sym = bool(isinstance(sym, _Symbol))
+        self.is_np_sym = isinstance(sym, _Symbol)
 
         flags = {key: str(value) for key, value in flags}
         self.handle = CachedOpHandle(_api_internal.create(
@@ -67,8 +67,7 @@ class CachedOp(object):
         """
         from ..symbol import Symbol
         sym_handle = SymbolHandle(_api_internal.get_optimized_symbol(self.handle))
-        ret = Symbol(sym_handle)
-        return ret
+        return Symbol(sym_handle)
 
     def __call__(self, *args, **kwargs):
         """ctypes implementation of imperative invoke wrapper"""

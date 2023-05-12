@@ -76,10 +76,18 @@ def importASC(key, gpgPassphrase):
     filename = os.path.join(KEY_PATH, "key.asc")
     with open(filename, 'w') as f:
         f.write(key)
-    subprocess.check_output(['gpg2', '--batch', '--yes',
-                    '--passphrase-fd', '0',
-                    "--import", "{}".format(filename)],
-                   input=str.encode(gpgPassphrase))
+    subprocess.check_output(
+        [
+            'gpg2',
+            '--batch',
+            '--yes',
+            '--passphrase-fd',
+            '0',
+            "--import",
+            f"{filename}",
+        ],
+        input=str.encode(gpgPassphrase),
+    )
 
 
 def encryptMasterPSW(password):
@@ -110,8 +118,9 @@ def encryptPSW(password):
 
 def masterPSW(password):
     with open(os.path.join(KEY_PATH, "settings-security.xml"), "w") as f:
-        f.write("<settingsSecurity>\n <master>{}</master>\n</settingsSecurity>"
-                .format(password))
+        f.write(
+            f"<settingsSecurity>\n <master>{password}</master>\n</settingsSecurity>"
+        )
 
 
 def serverPSW(username, password, gpgPassphrase):

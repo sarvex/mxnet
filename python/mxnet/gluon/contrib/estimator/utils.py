@@ -29,9 +29,10 @@ def _check_metrics(metrics):
         metrics = [metrics]
     else:
         metrics = metrics or []
-        if not all([isinstance(metric, EvalMetric) for metric in metrics]):
-            raise ValueError("metrics must be a Metric or a list of Metric, "
-                             "refer to mxnet.gluon.metric.EvalMetric: {}".format(metrics))
+        if not all(isinstance(metric, EvalMetric) for metric in metrics):
+            raise ValueError(
+                f"metrics must be a Metric or a list of Metric, refer to mxnet.gluon.metric.EvalMetric: {metrics}"
+            )
     return metrics
 
 def _check_handler_metric_ref(handler, known_metrics):
@@ -49,13 +50,8 @@ def _check_handler_metric_ref(handler, known_metrics):
 def _check_metric_known(handler, metric, known_metrics):
     if metric not in known_metrics:
         raise ValueError(
-            'Event handler {} refers to a metric instance {} outside of '
-            'the known training and validation metrics. Please use the metrics from '
-            'estimator.train_metrics and estimator.val_metrics '
-            'instead.'.format(type(handler).__name__,
-                              metric))
+            f'Event handler {type(handler).__name__} refers to a metric instance {metric} outside of the known training and validation metrics. Please use the metrics from estimator.train_metrics and estimator.val_metrics instead.'
+        )
 
 def _suggest_metric_for_loss(loss):
-    if isinstance(loss, SoftmaxCrossEntropyLoss):
-        return Accuracy()
-    return None
+    return Accuracy() if isinstance(loss, SoftmaxCrossEntropyLoss) else None

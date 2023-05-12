@@ -120,8 +120,5 @@ def train(epochs, ctx):
 
 
 if __name__ == '__main__':
-    if opt.cuda:
-        ctx = mx.gpu(0)
-    else:
-        ctx = mx.cpu()
+    ctx = mx.gpu(0) if opt.cuda else mx.cpu()
     train(opt.epochs, ctx)

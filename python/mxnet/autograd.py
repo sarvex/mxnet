@@ -270,7 +270,7 @@ def backward(heads, head_grads=None, retain_graph=False, train_mode=True): #pyli
 
 
 def grad(heads, variables, head_grads=None, retain_graph=None, create_graph=False,
-         train_mode=True):  #pylint: disable=redefined-outer-name
+         train_mode=True):    #pylint: disable=redefined-outer-name
     """Compute the gradients of heads w.r.t variables. Gradients will be
     returned as new NDArrays instead of stored into `variable.grad`.
     Supports recording gradient graph for computing higher order gradients.
@@ -341,9 +341,7 @@ def grad(heads, variables, head_grads=None, retain_graph=None, create_graph=Fals
     ret = [_ndarray_cls(ctypes.cast(grad_vars[i], NDArrayHandle),
                         stype=grad_stypes[i])
            for i in range(len(var_handles))]
-    if isinstance(variables, NDArray):
-        return ret[0]
-    return ret
+    return ret[0] if isinstance(variables, NDArray) else ret
 
 
 def get_symbol(x):

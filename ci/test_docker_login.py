@@ -45,7 +45,7 @@ def mock_boto(num_calls: int = 1):
 
     # Stub get_secret_value response
     stub = Stubber(mock_client)
-    for i in range(num_calls):
+    for _ in range(num_calls):
         stub.add_response(
             method="get_secret_value",
             expected_params={

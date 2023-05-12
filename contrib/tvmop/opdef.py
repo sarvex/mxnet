@@ -60,12 +60,13 @@ class OpDef:
         # ]
         self.attrs = kwargs.pop('attrs', [])
         self.attrs_valid = kwargs.pop('attrs_valid', lambda **kwargs: True)
-        args = [k for k in kwargs]
+        args = list(kwargs)
         values = [kwargs[k] if isinstance(kwargs[k], (list, tuple)) else [kwargs[k]]
                   for k in args]
         cart_product = product(*values)
-        self.arg_combination = [{k: v for k, v in zip(args, comb_values)}
-                                for comb_values in cart_product]
+        self.arg_combination = [
+            dict(zip(args, comb_values)) for comb_values in cart_product
+        ]
         self.func = func
         self.name = name
         self.target = target
@@ -78,8 +79,9 @@ class OpDef:
     def invoke_all(self):
         for each_kwargs in self.arg_combination:
             if self.attrs_valid(**each_kwargs):
-                name = self.name \
-                    + ''.join(["{}_{}".format(key, each_kwargs[key]) for key in self.attrs])
+                name = self.name + ''.join(
+                    [f"{key}_{each_kwargs[key]}" for key in self.attrs]
+                )
                 if self.dispatchable is False:
                     sch, args = self.func(**each_kwargs)
                     yield sch, args, name
@@ -92,13 +94,13 @@ class OpDef:
                         config_entity = config_space.get(i)
                         with autotvm.task.ApplyConfig(config_entity):
                             sch, args = self.func(fallback=False, **each_kwargs)
-                        subname = name + "index_" + str(i)
+                        subname = f"{name}index_{str(i)}"
                         yield sch, args, subname
                     # register fallback schedule
                     config_space = autotvm.ConfigSpace()
                     with autotvm.task.ApplyConfig(config_space):
                             sch, args = self.func(fallback=True, **each_kwargs)
-                    subname = name + "fallback"
+                    subname = f"{name}fallback"
                     yield sch, args, subname
 
     def get_op_name(self, name, args):
@@ -107,8 +109,9 @@ class OpDef:
     def get_config_spaces(self):
         for each_kwargs in self.arg_combination:
             if self.attrs_valid(**each_kwargs) and self.dispatchable is True:
-                name = self.name \
-                    + ''.join(["{}_{}".format(key, each_kwargs[key]) for key in self.attrs])
+                name = self.name + ''.join(
+                    [f"{key}_{each_kwargs[key]}" for key in self.attrs]
+                )
                 config_space = autotvm.ConfigSpace()
                 with autotvm.task.ApplyConfig(config_space):
                     self.func(fallback=False, **each_kwargs)

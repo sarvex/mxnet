@@ -37,9 +37,7 @@ def _append_return(*args):
     This allows many transform functions to bypass additional arguments.
     """
     if args:
-        if len(args) == 1:
-            return args[0]
-        return tuple(args)
+        return args[0] if len(args) == 1 else tuple(args)
     return None
 
 
@@ -166,8 +164,9 @@ class Rotate(Block):
 
     def forward(self, x, *args):
         if onp.dtype(x.dtype) is not onp.dtype(onp.float32):
-            raise TypeError("This transformation only supports float32. "
-                            "Consider calling it after ToTensor, given: {}".format(x.dtype))
+            raise TypeError(
+                f"This transformation only supports float32. Consider calling it after ToTensor, given: {x.dtype}"
+            )
         return _append_return(image.imrotate(x, *self._args), *args)
 
 

@@ -67,10 +67,7 @@ class Feature(ctypes.Structure):
         return self._enabled
 
     def __repr__(self):
-        if self.enabled:
-            return "✔ {}".format(self.name)
-        else:
-            return "✖ {}".format(self.name)
+        return f"✔ {self.name}" if self.enabled else f"✖ {self.name}"
 
 def feature_list():
     """Check the library for compile-time features. The list of features are maintained in libinfo.h and libinfo.cc
@@ -83,8 +80,7 @@ def feature_list():
     lib_features_c_array = ctypes.POINTER(Feature)()
     lib_features_size = ctypes.c_size_t()
     check_call(_LIB.MXLibInfoFeatures(ctypes.byref(lib_features_c_array), ctypes.byref(lib_features_size)))
-    features = [lib_features_c_array[i] for i in range(lib_features_size.value)]
-    return features
+    return [lib_features_c_array[i] for i in range(lib_features_size.value)]
 
 class Features(collections.OrderedDict):
     """OrderedDict of name to Feature"""
@@ -113,8 +109,9 @@ class Features(collections.OrderedDict):
         """
         feature_name = feature_name.upper()
         if feature_name not in self:
-            raise RuntimeError("Feature '{}' is unknown, known features are: {}".format(
-                feature_name, list(self.keys())))
+            raise RuntimeError(
+                f"Feature '{feature_name}' is unknown, known features are: {list(self.keys())}"
+            )
         return self[feature_name].enabled
 
 def get_branch():

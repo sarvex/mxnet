@@ -132,9 +132,8 @@ def register_error(func_name=None, cls=None):
         err_name = func_name if isinstance(func_name, str) else mycls.__name__
         error_types[err_name] = mycls
         return mycls
-    if cls is None:
-        return register
-    return register(cls)
+
+    return register if cls is None else register(cls)
 
 
 def _valid_error_name(name):
@@ -158,9 +157,7 @@ def _find_error_type(line):
     if end_pos == -1:
         return None
     err_name = line[:end_pos]
-    if _valid_error_name(err_name):
-        return err_name
-    return None
+    return err_name if _valid_error_name(err_name) else None
 
 
 def c2pyerror(err_msg):
@@ -214,11 +211,11 @@ class NotImplementedForSymbol(MXNetError):
         self.args = [str(type(a)) for a in args]
 
     def __str__(self):
-        msg = 'Function {}'.format(self.function)
+        msg = f'Function {self.function}'
         if self.alias:
-            msg += ' (namely operator "{}")'.format(self.alias)
+            msg += f' (namely operator "{self.alias}")'
         if self.args:
-            msg += ' with arguments ({})'.format(', '.join(self.args))
+            msg += f" with arguments ({', '.join(self.args)})"
         msg += ' is not implemented for Symbol and only available in NDArray.'
         return msg
 
@@ -262,11 +259,11 @@ class NotSupportedForSparseNDArray(MXNetError):
         self.args = [str(type(a)) for a in args]
 
     def __str__(self):
-        msg = 'Function {}'.format(self.function)
+        msg = f'Function {self.function}'
         if self.alias:
-            msg += ' (namely operator "{}")'.format(self.alias)
+            msg += f' (namely operator "{self.alias}")'
         if self.args:
-            msg += ' with arguments ({})'.format(', '.join(self.args))
+            msg += f" with arguments ({', '.join(self.args)})"
         msg += ' is not supported for SparseNDArray and only available in NDArray.'
         return msg
 
@@ -548,8 +545,7 @@ def build_param_doc(arg_names, arg_types, arg_descs, remove_dup=True):
     doc_str = ('Parameters\n' +
                '----------\n' +
                '{}\n')
-    doc_str = doc_str.format('\n'.join(param_str))
-    return doc_str
+    return doc_str.format('\n'.join(param_str))
 
 
 def _notify_shutdown():
@@ -609,10 +605,7 @@ def _as_list(obj):
     single-element list.
 
     """
-    if isinstance(obj, (list, tuple)):
-        return obj
-    else:
-        return [obj]
+    return obj if isinstance(obj, (list, tuple)) else [obj]
 
 
 _OP_NAME_PREFIX_LIST = ['_contrib_', '_linalg_', '_sparse_', '_image_', '_random_']
@@ -623,10 +616,14 @@ def _get_op_name_prefix(op_name):
     Check whether the given op_name starts with any words in `_OP_NAME_PREFIX_LIST`.
     If found, return the prefix; else, return an empty string.
     """
-    for prefix in _OP_NAME_PREFIX_LIST:
-        if op_name.startswith(prefix):
-            return prefix
-    return ""
+    return next(
+        (
+            prefix
+            for prefix in _OP_NAME_PREFIX_LIST
+            if op_name.startswith(prefix)
+        ),
+        "",
+    )
 
 
 # pylint: enable=invalid-name
@@ -663,10 +660,12 @@ def _init_op_module(root_namespace, module_name, make_op_func):
     # use mx.nd.contrib or mx.sym.contrib from now on
     contrib_module_name_old = f"{root_namespace}.contrib.{module_name}"
     contrib_module_old = sys.modules[contrib_module_name_old]
-    submodule_dict = {}
-    for op_name_prefix in _OP_NAME_PREFIX_LIST:
-        submodule_dict[op_name_prefix] =\
-            sys.modules[f"{root_namespace}.{module_name}.{op_name_prefix[1:-1]}"]
+    submodule_dict = {
+        op_name_prefix: sys.modules[
+            f"{root_namespace}.{module_name}.{op_name_prefix[1:-1]}"
+        ]
+        for op_name_prefix in _OP_NAME_PREFIX_LIST
+    }
     for name in op_names:
         hdl = OpHandle()
         check_call(_LIB.NNGetOpHandle(c_str(name), ctypes.byref(hdl)))
@@ -742,7 +741,7 @@ def _generate_op_module_signature(root_namespace, module_name, op_code_gen_func)
         """Return the generated module file based on module name."""
         path = os.path.dirname(__file__)
         module_path = module_name.split('.')
-        module_path[-1] = 'gen_' + module_path[-1]
+        module_path[-1] = f'gen_{module_path[-1]}'
         file_name = os.path.join(path, '..', *module_path) + '.py'
         module_file = open(file_name, 'w', encoding="utf-8")
         dependencies = {'symbol': ['from ._internal import SymbolBase',
@@ -751,8 +750,10 @@ def _generate_op_module_signature(root_namespace, module_name, op_code_gen_func)
                                     'from ..base import _Null']}
         module_file.write('# coding: utf-8')
         module_file.write(license_str)
-        module_file.write('# File content is auto-generated. Do not modify.' + os.linesep)
-        module_file.write('# pylint: skip-file' + os.linesep)
+        module_file.write(
+            f'# File content is auto-generated. Do not modify.{os.linesep}'
+        )
+        module_file.write(f'# pylint: skip-file{os.linesep}')
         module_file.write(os.linesep.join(dependencies[module_name.split('.')[1]]))
         return module_file
 
@@ -851,18 +852,20 @@ def _output_is_list(op_name):
     -------
 
     """
-    if _is_np_op(op_name):
-        return op_name in _NP_OUTPUT_IS_LIST_OPERATORS
-    return False
+    return op_name in _NP_OUTPUT_IS_LIST_OPERATORS if _is_np_op(op_name) else False
 
 
 def _get_op_submodule_name(op_name, op_name_prefix, submodule_name_list):
     """Get the submodule name of a specific op"""
     assert op_name.startswith(op_name_prefix)
-    for submodule_name in submodule_name_list:
-        if op_name[len(op_name_prefix):].startswith(submodule_name):
-            return submodule_name
-    return ""
+    return next(
+        (
+            submodule_name
+            for submodule_name in submodule_name_list
+            if op_name[len(op_name_prefix) :].startswith(submodule_name)
+        ),
+        "",
+    )
 
 
 def _init_np_op_module(root_module_name, np_module_name, mx_module_name, make_op_func):
@@ -896,7 +899,7 @@ def _init_np_op_module(root_module_name, np_module_name, mx_module_name, make_op
         submodule_name_list = []
         op_implemented_set = set()
     else:
-        raise ValueError('unsupported np module name {}'.format(np_module_name))
+        raise ValueError(f'unsupported np module name {np_module_name}')
 
     plist = ctypes.POINTER(ctypes.c_char_p)()
     size = ctypes.c_uint()
@@ -904,13 +907,12 @@ def _init_np_op_module(root_module_name, np_module_name, mx_module_name, make_op
     op_names = []
     for i in range(size.value):
         name = py_str(plist[i])
-        if mx_module_name != 'symbol':
-            if name.startswith(op_name_prefix) and name not in op_implemented_set:
-                op_names.append(name)
-        else:
+        if mx_module_name == 'symbol':
             if name.startswith(op_name_prefix):
                 op_names.append(name)
 
+        elif name.startswith(op_name_prefix) and name not in op_implemented_set:
+            op_names.append(name)
     if mx_module_name is None:
         # register np/npx ops for imperative programming
         op_module_name = f"{root_module_name}.{np_module_name}._op" # e.g. mxnet.numpy._op
@@ -926,13 +928,16 @@ def _init_np_op_module(root_module_name, np_module_name, mx_module_name, make_op
         # e.g. mxnet.symbol.numpy.random
         op_submodule_name = f"{root_module_name}.{mx_module_name}.{np_module_name}"
     else:
-        raise ValueError('unsupported mxnet module {}'.format(mx_module_name))
+        raise ValueError(f'unsupported mxnet module {mx_module_name}')
     op_submodule_name += '.{}'
 
     op_module = sys.modules[op_module_name]
-    submodule_dict = {}
-    for submodule_name in submodule_name_list:
-        submodule_dict[submodule_name] = sys.modules[op_submodule_name.format(submodule_name[1:-1])]
+    submodule_dict = {
+        submodule_name: sys.modules[
+            op_submodule_name.format(submodule_name[1:-1])
+        ]
+        for submodule_name in submodule_name_list
+    }
     for name in op_names:
         hdl = OpHandle()
         check_call(_LIB.NNGetOpHandle(c_str(name), ctypes.byref(hdl)))

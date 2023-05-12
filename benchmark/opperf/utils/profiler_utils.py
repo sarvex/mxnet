@@ -37,7 +37,7 @@ def _get_memory_profile(memory_profile_results):
         if line.startswith("Memory:"):
             device_id = line.split()[1]
             avg_time_memory_alloc = float(line.split()[-1])
-            memory_profile["max_storage_mem_alloc_" + device_id] = avg_time_memory_alloc
+            memory_profile[f"max_storage_mem_alloc_{device_id}"] = avg_time_memory_alloc
 
     return memory_profile
 
@@ -54,16 +54,12 @@ def _get_operator_profile(operator_name, operator_profile_results):
 
     op_name = None
 
-    if operator_name in alias_map:
-        op_name = alias_map[operator_name]
-    else:
-        op_name = operator_name
-
+    op_name = alias_map.get(operator_name, operator_name)
     # Variables to store forward/backward performance results
     forward_res, backward_res = None, None
 
     for line in operator_profile_results:
-        if op_name in line or op_name[:3] + " " in line:
+        if op_name in line or f"{op_name[:3]} " in line:
             operation = line.split()[0]
             operation_avg_time = float(line.split()[-1])
             if "_backward" in operation:
@@ -73,10 +69,10 @@ def _get_operator_profile(operator_name, operator_profile_results):
 
     # Add forward and backward performance results to the dict in the correct order
     if forward_res:
-        operator_profile["avg_time_forward_" + operator_name] = forward_res
+        operator_profile[f"avg_time_forward_{operator_name}"] = forward_res
 
     if backward_res:
-        operator_profile["avg_time_backward_" + operator_name] = backward_res
+        operator_profile[f"avg_time_backward_{operator_name}"] = backward_res
 
     return operator_profile
 
@@ -206,7 +202,7 @@ def cpp_profile(func):
         # args[0] is assumed to be operator name, if not found check for block name.
         # NOTE: This parameter should be removed when we get away from parsing
         # profiler output and start using new profiler APIs - get_summary(), reset()
-        if len(args) > 0:
+        if args:
             operator_name = args[0].__name__
         elif 'block' in kwargs:
             operator_name = kwargs['block']._op_name
@@ -259,7 +255,7 @@ def python_profile(func):
             times.append(run_time)
 
         # NOTE : same as cpp_profile_it
-        if len(args) > 0:
+        if args:
             operator_name = args[0].__name__
         elif 'block' in kwargs:
             operator_name = kwargs['block']._op_name
@@ -271,10 +267,12 @@ def python_profile(func):
         p90_run_time = np.percentile(times, 90)
         p99_run_time = np.percentile(times, 99)
 
-        profiler_output = {'avg_time_'+str(operator_name): avg_run_time,
-                           'p50_time_'+str(operator_name): p50_run_time,
-                           'p90_time_'+str(operator_name): p90_run_time,
-                           'p99_time_'+str(operator_name): p99_run_time,
-                           }
+        profiler_output = {
+            f'avg_time_{str(operator_name)}': avg_run_time,
+            f'p50_time_{str(operator_name)}': p50_run_time,
+            f'p90_time_{str(operator_name)}': p90_run_time,
+            f'p99_time_{str(operator_name)}': p99_run_time,
+        }
         return res, profiler_output
+
     return python_profile_it

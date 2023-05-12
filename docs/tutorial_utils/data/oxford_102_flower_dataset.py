@@ -179,7 +179,7 @@ def prepare_data():
     image_labels = [label_names[i] for i in image_labels]
     # extracted images are stored in folder 'jpg'
     files = sorted(glob.glob(os.path.join(data_path, 'jpg', '*.jpg')))
-    file_label_pairs = np.array([i for i in zip(files, image_labels)])
+    file_label_pairs = np.array(list(zip(files, image_labels)))
 
     # move files from extracted folder to train, test, valid
     move_files('train', file_label_pairs[idx_test, :])

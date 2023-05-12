@@ -38,14 +38,10 @@ def _multilist_iterator(arg, func):
     with same dimensions, but applied `func` function on list elements.
     E.g. _multilist_iterator([1, 2, [3, 4]], lambda x: x**2) = [1, 4, [9, 16]]
     """
-    ret = []
-    if isinstance(arg, list):
-        for el in arg:
-            ret.append(_multilist_iterator(el, func))
-    else:
+    if not isinstance(arg, list):
         return func(arg)
 
-    return ret
+    return [_multilist_iterator(el, func) for el in arg]
 
 def _quantize_params(qsym, params, min_max_dict):
     """Given a quantized symbol and a dict of params that have not been quantized,
@@ -87,8 +83,8 @@ def _quantize_params(qsym, params, min_max_dict):
                                           max_range=param_max,
                                           out_type='int8')
             quantized_params[name] = val
-            quantized_params[name+'_min'] = vmin
-            quantized_params[name+'_max'] = vmax
+            quantized_params[f'{name}_min'] = vmin
+            quantized_params[f'{name}_max'] = vmax
         elif name in params:
             quantized_params[name] = params[name]
         elif name.endswith(('_min')):
@@ -150,9 +146,7 @@ def _quantize_symbol(sym, device, excluded_symbols=None, excluded_operators=None
     offline = []
     if offline_params is not None:
         num_offline = len(offline_params)
-        for k in offline_params:
-            offline.append(c_str(k))
-
+        offline.extend(c_str(k) for k in offline_params)
     out = SymbolHandle()
     size = mx_uint()
     calib_str = ctypes.POINTER(ctypes.c_char_p)()
@@ -237,8 +231,9 @@ class _LayerHistogramCollector(CalibrationCollector):
             self.hist_dict[name] = (hist, hist_edges, min_range, max_range, th)
 
     def post_collect(self):
-        min_max_dict = self.get_optimal_thresholds(self.hist_dict, self.quantized_dtype, logger=self.logger)
-        return min_max_dict
+        return self.get_optimal_thresholds(
+            self.hist_dict, self.quantized_dtype, logger=self.logger
+        )
 
     @staticmethod
     def combine_histogram(old_hist, arr, new_min, new_max, new_th):
@@ -404,12 +399,16 @@ def _generate_list_of_data_desc(data_shapes, data_types):
         if isinstance(data_shape, DataDesc):
             return data_shape
         elif isinstance(data_shape, tuple):
-            desc = DataDesc(name='data' + str(counter[0]), shape=data_shape,
-                                        dtype=data_types[counter[0]])
+            desc = DataDesc(
+                name=f'data{str(counter[0])}',
+                shape=data_shape,
+                dtype=data_types[counter[0]],
+            )
             counter[0] += 1
             return desc
         else:
             raise ValueError('data_shapes must be either a list of DataDesc or a list of Tuple')
+
 
 
     if len(data_shapes) == 1 and not isinstance(data_shapes[0], list):
@@ -775,17 +774,16 @@ def calib_graph(qsym, arg_params, aux_params, collector,
         A tuple of calibrated symbol, quantized arg_params, aux_params.
     """
     min_max_dict = {}
-    if calib_mode is not None and calib_mode != 'none':
-        if calib_mode in ('entropy', 'naive', 'custom'):
-            min_max_dict = collector.post_collect()
-
-        else:
-            raise ValueError(f'unknown calibration mode {calib_mode} received,'
-                             ' expected `none`, `naive`, `entropy` or `custom`')
-        qsym = _calibrate_quantized_sym(qsym, min_max_dict)
-    else:
+    if calib_mode is None or calib_mode == 'none':
         raise ValueError('Please set calibration mode to naive, entropy or custom (with custom CalibrationCollector)')
 
+    if calib_mode in ('entropy', 'naive', 'custom'):
+        min_max_dict = collector.post_collect()
+
+    else:
+        raise ValueError(f'unknown calibration mode {calib_mode} received,'
+                         ' expected `none`, `naive`, `entropy` or `custom`')
+    qsym = _calibrate_quantized_sym(qsym, min_max_dict)
     if logger:
         logger.info('Quantizing parameters')
     qarg_params = _quantize_params(qsym, arg_params, min_max_dict)

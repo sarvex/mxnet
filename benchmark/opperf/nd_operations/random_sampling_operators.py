@@ -60,6 +60,6 @@ def run_mx_random_sampling_operators_benchmarks(ctx=mx.cpu(), dtype='float32', p
     """
     # Fetch all Random Sampling Operators
     mx_random_sample_ops = get_all_random_sampling_operators()
-    # Run benchmarks
-    mx_random_sample_op_results = run_op_benchmarks(mx_random_sample_ops, dtype, ctx, profiler, int64_tensor, warmup, runs)
-    return mx_random_sample_op_results
+    return run_op_benchmarks(
+        mx_random_sample_ops, dtype, ctx, profiler, int64_tensor, warmup, runs
+    )

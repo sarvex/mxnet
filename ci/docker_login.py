@@ -55,8 +55,7 @@ def _get_dockerhub_credentials(secret_name: str, secret_endpoint_url: str, secre
         raise
     else:
         secret = get_secret_value_response['SecretString']
-        secret_dict = json.loads(secret)
-        return secret_dict
+        return json.loads(secret)
 
 
 @retry(target_exception=subprocess.CalledProcessError, tries=DOCKERHUB_LOGIN_NUM_RETRIES,

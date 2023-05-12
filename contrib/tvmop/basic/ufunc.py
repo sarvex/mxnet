@@ -33,7 +33,7 @@ def compute_add(dtype, ndim):
        dtype=AllTypes, ndim=[5])
 def vadd(dtype, ndim):
     s, A, B, C = compute_add(dtype, ndim)
-    axes = [axis for axis in C.op.axis]
+    axes = list(C.op.axis)
     fused = s[C].fuse(*axes)
     s[C].parallel(fused)
 
@@ -45,7 +45,7 @@ def vadd(dtype, ndim):
 def vadd_gpu(dtype, ndim):
     s, A, B, C = compute_add(dtype, ndim)
     s = tvm.te.create_schedule(C.op)
-    axes = [axis for axis in C.op.axis]
+    axes = list(C.op.axis)
     fused = s[C].fuse(*axes)
     bx, tx = s[C].split(fused, factor=64)
     s[C].bind(bx, tvm.te.thread_axis("blockIdx.x"))
@@ -77,7 +77,7 @@ def compute_backward_vadd(dtype, ndim, reduce1st, req):
 def backward_vadd(dtype, ndim, reduce1st, req):
     s, X, in_grad_a, in_grad, c_list = compute_backward_vadd(dtype, ndim, reduce1st, req)
     for t in c_list:
-        axes = [axis for axis in t.op.axis]
+        axes = list(t.op.axis)
         fused = s[t].fuse(*axes)
         s[t].parallel(fused)
     return s, [X, in_grad_a, in_grad]
@@ -92,7 +92,7 @@ def backward_vadd_gpu(dtype, ndim, reduce1st, req):
     for t in c_list:
         block_x = tvm.te.thread_axis("blockIdx.x")
         thread_x = tvm.te.thread_axis("threadIdx.x")
-        axes = [axis for axis in t.op.axis]
+        axes = list(t.op.axis)
         fused = s[t].fuse(*axes)
         bx, tx = s[t].split(fused, factor=num_thread)
         s[t].bind(bx, block_x)
@@ -117,7 +117,7 @@ def compute_degandrad(dtype, ndim, n):
        dtype=["float32", "float64"], ndim=list(range(0, 6)))
 def deg2rad(dtype, ndim):
     s, A, B = compute_degandrad(dtype, ndim, 0)
-    axes = [axis for axis in B.op.axis]
+    axes = list(B.op.axis)
     fused = s[B].fuse(*axes)
     s[B].parallel(fused)
     return s, [A, B]
@@ -127,7 +127,7 @@ def deg2rad(dtype, ndim):
        dtype=["float32", "float64"], ndim=list(range(0, 6)))
 def rad2deg(dtype, ndim):
     s, A, B = compute_degandrad(dtype, ndim, 1)
-    axes = [axis for axis in B.op.axis]
+    axes = list(B.op.axis)
     fused = s[B].fuse(*axes)
     s[B].parallel(fused)
     return s, [A, B]
@@ -138,7 +138,7 @@ def rad2deg(dtype, ndim):
 def deg2rad_gpu(dtype, ndim):
     s, A, B = compute_degandrad(dtype, ndim, 0)
     s = tvm.te.create_schedule(B.op)
-    axes = [axis for axis in B.op.axis]
+    axes = list(B.op.axis)
     fused = s[B].fuse(*axes)
     bx, tx = s[B].split(fused, factor=64)
     s[B].bind(bx, tvm.te.thread_axis("blockIdx.x"))
@@ -151,7 +151,7 @@ def deg2rad_gpu(dtype, ndim):
 def rad2deg_gpu(dtype, ndim):
     s, A, B = compute_degandrad(dtype, ndim, 1)
     s = tvm.te.create_schedule(B.op)
-    axes = [axis for axis in B.op.axis]
+    axes = list(B.op.axis)
     fused = s[B].fuse(*axes)
     bx, tx = s[B].split(fused, factor=64)
     s[B].bind(bx, tvm.te.thread_axis("blockIdx.x"))
@@ -183,7 +183,7 @@ def compute_backward_degandrad(dtype, ndim, req, n):
 def backward_deg2rad(dtype, ndim, req):
     s, out_grad, in_grad_tmp, in_grad, c_list = compute_backward_degandrad(dtype, ndim, req, 0)
     for t in c_list:
-        axes = [axis for axis in t.op.axis]
+        axes = list(t.op.axis)
         fused = s[t].fuse(*axes)
         s[t].parallel(fused)
     return s, [out_grad, in_grad, in_grad_tmp]
@@ -195,7 +195,7 @@ def backward_deg2rad(dtype, ndim, req):
 def backward_rad2deg(dtype, ndim, req):
     s, out_grad, in_grad_tmp, in_grad, c_list = compute_backward_degandrad(dtype, ndim, req, 1)
     for t in c_list:
-        axes = [axis for axis in t.op.axis]
+        axes = list(t.op.axis)
         fused = s[t].fuse(*axes)
         s[t].parallel(fused)
     return s, [out_grad, in_grad, in_grad_tmp]
@@ -210,7 +210,7 @@ def cuda_backward_deg2rad(dtype, ndim, req):
     for t in c_list:
         block_x = tvm.te.thread_axis("blockIdx.x")
         thread_x = tvm.te.thread_axis("threadIdx.x")
-        axes = [axis for axis in t.op.axis]
+        axes = list(t.op.axis)
         fused = s[t].fuse(*axes)
         bx, tx = s[t].split(fused, factor=num_thread)
         s[t].bind(bx, block_x)
@@ -227,7 +227,7 @@ def cuda_backward_rad2deg(dtype, ndim, req):
     for t in c_list:
         block_x = tvm.te.thread_axis("blockIdx.x")
         thread_x = tvm.te.thread_axis("threadIdx.x")
-        axes = [axis for axis in t.op.axis]
+        axes = list(t.op.axis)
         fused = s[t].fuse(*axes)
         bx, tx = s[t].split(fused, factor=num_thread)
         s[t].bind(bx, block_x)

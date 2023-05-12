@@ -41,7 +41,7 @@ dump_graph = "--dump_graph" in sys.argv
 
 def dump_graph_fn(net, postfix):
     if dump_graph:
-        net.export("/tmp/fc_add_" + postfix)
+        net.export(f"/tmp/fc_add_{postfix}")
 
 def operator_string(elemwise_add):
     return 'elemwise_add' if elemwise_add else 'npi_add'
@@ -89,16 +89,19 @@ class FCWithSum(nn.HybridBlock):
     def forward(self, data0, data1, data2):
         _fc0 = self.fc0(data0)
         _fc1 = self.fc1(data1)
-        if  self.elemwise_add:
+        if self.elemwise_add:
             _sum0 = mx.nd.elemwise_add(data2.as_nd_ndarray(), _fc0.as_nd_ndarray()).as_np_ndarray()
-            _sum1 = mx.nd.elemwise_add(_fc1.as_nd_ndarray(), _sum0.as_nd_ndarray()).as_np_ndarray()
+            return mx.nd.elemwise_add(
+                _fc1.as_nd_ndarray(), _sum0.as_nd_ndarray()
+            ).as_np_ndarray()
         else:
             _sum0 = data2 + _fc0
-            _sum1 = _fc1 + _sum0
-        return _sum1
+            return _fc1 + _sum0
 
 def benchmark_float(elemwise_add, broadcast=False):
-    header = operator_string(elemwise_add) + ', float' + (' , broadcast' if broadcast else "")
+    header = f'{operator_string(elemwise_add)}, float' + (
+        ' , broadcast' if broadcast else ""
+    )
     print_header(header)
     for shape, nhid in sizes:
         net = FCWithSum(shape[1], nhid, elemwise_add)
@@ -113,7 +116,7 @@ def benchmark_float(elemwise_add, broadcast=False):
         data2 = mx.np.random.uniform(size=shape2, low=-1.0, high=1.0)
         net.optimize_for(data0, data1, data2, backend='ONEDNN')
         measure(net, data0, data1, data2, shape, nhid)
-    dump_graph_fn(net, operator_string(elemwise_add) + '_float')
+    dump_graph_fn(net, f'{operator_string(elemwise_add)}_float')
 
 class CalibIter(mx.io.DataIter):
     def __init__(self, batch, data_shape, batch_size):
@@ -130,8 +133,10 @@ class CalibIter(mx.io.DataIter):
         yield self.batch
 
 def benchmark_int8(quantize_mode, quantize_granularity, elemwise_add, broadcast = False):
-    header = operator_string(elemwise_add) + ', mode = ' + quantize_mode + \
-             ', granularity = ' + quantize_granularity + (' , broadcast' if broadcast else "")
+    header = (
+        f'{operator_string(elemwise_add)}, mode = {quantize_mode}, granularity = {quantize_granularity}'
+        + (' , broadcast' if broadcast else "")
+    )
     print_header(header)
     for shape, nhid in sizes:
         net = FCWithSum(shape[1], nhid, elemwise_add)

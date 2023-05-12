@@ -282,11 +282,11 @@ class Executor:
         ------
         ValueError : if there are duplicated names in the arguments.
         """
-        ret = {}
-        for k, v in zip(self._input_names, self._args):
-            if k in self._arg_names:
-                ret[k] = v
-        return ret
+        return {
+            k: v
+            for k, v in zip(self._input_names, self._args)
+            if k in self._arg_names
+        }
 
     @property
     def aux_dict(self):
@@ -301,11 +301,11 @@ class Executor:
         ------
         ValueError : if there are duplicated names in the auxiliary states.
         """
-        ret = {}
-        for k, v in zip(self._input_names, self._args):
-            if k in self._aux_names:
-                ret[k] = v
-        return ret
+        return {
+            k: v
+            for k, v in zip(self._input_names, self._args)
+            if k in self._aux_names
+        }
 
     @property
     def grad_dict(self):
@@ -316,11 +316,11 @@ class Executor:
         grad_dict : dict of str to NDArray
             The dictionary that maps name of arguments to gradient arrays.
         """
-        ret = {}
-        for k, v in zip(self._input_names, self._args):
-            if k in self._arg_names:
-                ret[k] = v.grad
-        return ret
+        return {
+            k: v.grad
+            for k, v in zip(self._input_names, self._args)
+            if k in self._arg_names
+        }
 
     @property
     def output_dict(self):
@@ -335,10 +335,7 @@ class Executor:
         ------
         ValueError : if there are duplicated names in the outputs.
         """
-        ret = {}
-        for k, v in zip(self._output_names, self.outputs):
-            ret[k] = v
-        return ret
+        return dict(zip(self._output_names, self.outputs))
 
     def copy_params_from(self, arg_params, aux_params=None, allow_extra_params=False):
         """Copy parameters from arg_params, aux_params into executor's internal array.

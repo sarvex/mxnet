@@ -74,7 +74,7 @@ class MNIST(dataset._DownloadedDataset):
         else:
             data, label = self._test_data, self._test_label
 
-        namespace = 'gluon/dataset/'+self._namespace
+        namespace = f'gluon/dataset/{self._namespace}'
         data_file = download(_get_repo_file_url(namespace, data[0]),
                              path=self._root,
                              sha1_hash=data[1])
@@ -175,7 +175,7 @@ class CIFAR10(dataset._DownloadedDataset):
         if any(not os.path.exists(path) or not check_sha1(path, sha1)
                for path, sha1 in ((os.path.join(self._root, name), sha1)
                                   for name, sha1 in self._train_data + self._test_data)):
-            namespace = 'gluon/dataset/'+self._namespace
+            namespace = f'gluon/dataset/{self._namespace}'
             filename = download(_get_repo_file_url(namespace, self._archive_file[0]),
                                 path=self._root,
                                 sha1_hash=self._archive_file[1])
@@ -183,10 +183,7 @@ class CIFAR10(dataset._DownloadedDataset):
             with tarfile.open(filename) as tar:
                 tar.extractall(self._root)
 
-        if self._train:
-            data_files = self._train_data
-        else:
-            data_files = self._test_data
+        data_files = self._train_data if self._train else self._test_data
         data, label = zip(*(self._read_batch(os.path.join(self._root, name))
                             for name, _ in data_files))
         data = np.concatenate(data)
@@ -342,9 +339,7 @@ class ImageFolderDataset(dataset.Dataset):
     def __getitem__(self, idx):
         img = image.imread(self.items[idx][0], self._flag)
         label = self.items[idx][1]
-        if self._transform is not None:
-            return self._transform(img, label)
-        return img, label
+        return (img, label) if self._transform is None else self._transform(img, label)
 
     def __len__(self):
         return len(self.items)
@@ -415,10 +410,8 @@ class ImageListDataset(dataset.Dataset):
                     self._imglist[key] = (label, os.path.join(self._root, line[-1]))
                     self._imgkeys.append(key)
         elif isinstance(imglist, list):
-            index = 1
-            for img in imglist:
+            for index, img in enumerate(imglist, start=1):
                 key = str(index)
-                index += 1
                 if len(img) > 2:
                     label = array_fn(img[:-1])
                 elif isinstance(img[0], numeric_types):
@@ -430,8 +423,8 @@ class ImageListDataset(dataset.Dataset):
                 self._imgkeys.append(key)
         else:
             raise ValueError(
-                "imglist must be filename or list of valid entries, given {}".format(
-                    type(imglist)))
+                f"imglist must be filename or list of valid entries, given {type(imglist)}"
+            )
 
     def __getitem__(self, idx):
         key = self._imgkeys[idx]

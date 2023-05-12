@@ -314,8 +314,9 @@ def use_np_shape(func):
 def _sanity_check_params(func_name, unsupported_params, param_dict):
     for param_name in unsupported_params:
         if param_name in param_dict:
-            raise NotImplementedError("function {} does not support parameter {}"
-                                      .format(func_name, param_name))
+            raise NotImplementedError(
+                f"function {func_name} does not support parameter {param_name}"
+            )
 
 
 def set_module(module):
@@ -572,21 +573,33 @@ def np_ufunc_legal_option(key, value):
         arguments and value is an allowed value. False when the key is not one of the ufunc
         arugments or the value is not an allowed value even when the key is a legal one.
     """
-    if key == 'where':
-        return True
-    elif key == 'casting':
-        return (value in set(['no', 'equiv', 'safe', 'same_kind', 'unsafe']))
+    if key == 'casting':
+        return value in {'no', 'equiv', 'safe', 'same_kind', 'unsafe'}
+    elif key == 'dtype':
+        import numpy as _np
+        return value in {
+            _np.int8,
+            _np.uint8,
+            _np.int32,
+            _np.int64,
+            _np.float16,
+            _np.float32,
+            _np.float64,
+            'int8',
+            'uint8',
+            'int32',
+            'int64',
+            'float16',
+            'float32',
+            'float64',
+        }
     elif key == 'order':
         if isinstance(value, str):
             return True
-    elif key == 'dtype':
-        import numpy as _np
-        return (value in set([_np.int8, _np.uint8, _np.int32, _np.int64,
-                              _np.float16, _np.float32, _np.float64,
-                              'int8', 'uint8', 'int32', 'int64',
-                              'float16', 'float32', 'float64']))
     elif key == 'subok':
         return isinstance(value, bool)
+    elif key == 'where':
+        return True
     return False
 
 
@@ -605,7 +618,7 @@ def wrap_np_unary_func(func):
     """
     @functools.wraps(func)
     def _wrap_np_unary_func(x, out=None, **kwargs):
-        if len(kwargs) != 0:
+        if kwargs:
             for key, value in kwargs.items():
                 # if argument is not in the set of ufunc arguments
                 if key not in _np_ufunc_default_kwargs:
@@ -620,6 +633,7 @@ def wrap_np_unary_func(func):
                     raise TypeError("{}={} not understood for operator {}"
                                     .format(key, value, func.__name__))
         return func(x, out=out)
+
     return _wrap_np_unary_func
 
 
@@ -638,7 +652,7 @@ def wrap_np_binary_func(func):
     """
     @functools.wraps(func)
     def _wrap_np_binary_func(x1, x2, out=None, **kwargs):
-        if len(kwargs) != 0:
+        if kwargs:
             for key, value in kwargs.items():
                 # if argument is not in the set of ufunc arguments
                 if key not in _np_ufunc_default_kwargs:
@@ -651,6 +665,7 @@ def wrap_np_binary_func(func):
                     # otherwise raise TypeError with not understood error message
                     raise TypeError("{} {} not understood".format(key, value))
         return func(x1, x2, out=out)
+
     return _wrap_np_binary_func
 
 def wrap_data_api_statical_func(func):
@@ -668,7 +683,7 @@ def wrap_data_api_statical_func(func):
 
     @functools.wraps(func)
     def _wrap_api_creation_func(*args, **kwargs):
-        if len(kwargs) != 0:
+        if kwargs:
             correction = kwargs.pop('ddof', None)
             if correction is not None:
                 kwargs['correction'] = correction
@@ -691,15 +706,12 @@ def wrap_data_api_linalg_func(func):
 
     @functools.wraps(func)
     def _wrap_linalg_func(*args, **kwargs):
-        if len(kwargs) != 0:
+        if kwargs:
             upper = kwargs.pop('UPLO', None)
             rcond = kwargs.pop('rcond', None)
             tol = kwargs.pop('tol', None)
             if upper is not None:
-                if upper == 'U':
-                    kwargs['upper'] = True
-                else:
-                    kwargs['upper'] = False
+                kwargs['upper'] = upper == 'U'
             if rcond is not None:
                 kwargs['rtol'] = rcond
             if tol is not None:
@@ -723,7 +735,7 @@ def wrap_sort_functions(func):
     """
     @functools.wraps(func)
     def _wrap_sort_func(*args, **kwargs):
-        if len(kwargs) != 0:
+        if kwargs:
             kind = kwargs.pop('kind', None)
             order = kwargs.pop('order', None)
             if kind is not None:
@@ -731,6 +743,7 @@ def wrap_sort_functions(func):
             if order is not None:
                 raise NotImplementedError("order not supported here")
         return func(*args, **kwargs)
+
     return _wrap_sort_func
 
 
@@ -748,11 +761,12 @@ def wrap_ctx_to_device_func(func):
     """
     @functools.wraps(func)
     def _wrap_func_with_ctx(*args, **kwargs):
-        if len(kwargs) != 0:
+        if kwargs:
             device = kwargs.pop('ctx', None)
             if device is not None:
                 kwargs['device'] = device
         return func(*args, **kwargs)
+
     return _wrap_func_with_ctx
 
 
@@ -762,11 +776,10 @@ def numpy_fallback(func):
     def get_device(device, new_device):
         if device is None:
             return new_device
-        else:
-            if new_device is None:
-                new_device = device
-            assert device == new_device, f"inconsistent device {str(device)} and {str(new_device)}"
-            return device
+        if new_device is None:
+            new_device = device
+        assert device == new_device, f"inconsistent device {str(device)} and {str(new_device)}"
+        return device
 
     def _as_official_np_array(object):
         device = None
@@ -857,13 +870,12 @@ def _set_np_array(active):
         A bool value indicating the previous state of NumPy array semantics.
     """
     global _set_np_array_logged
-    if active:
-        if not _set_np_array_logged:
-            import logging
-            logging.info('NumPy array semantics has been activated in your code. This allows you'
-                         ' to use operators from MXNet NumPy and NumPy Extension modules as well'
-                         ' as MXNet NumPy `ndarray`s.')
-            _set_np_array_logged = True
+    if active and not _set_np_array_logged:
+        import logging
+        logging.info('NumPy array semantics has been activated in your code. This allows you'
+                     ' to use operators from MXNet NumPy and NumPy Extension modules as well'
+                     ' as MXNet NumPy `ndarray`s.')
+        _set_np_array_logged = True
     cur_state = is_np_array()
     _NumpyArrayScope._current.value = _NumpyArrayScope(active)
     return cur_state
@@ -982,8 +994,9 @@ def get_cuda_compute_capability(device):
     https://gist.github.com/f0k/63a664160d016a491b2cbea15913d549#file-cuda_check-py
     """
     if device.device_type != 'gpu':
-        raise ValueError('Expecting a gpu context to get cuda compute capability, '
-                         'while received device {}'.format(str(device)))
+        raise ValueError(
+            f'Expecting a gpu context to get cuda compute capability, while received device {str(device)}'
+        )
 
     libnames = ('libcuda.so', 'libcuda.dylib', 'nvcuda.dll', 'cuda.dll')
     for libname in libnames:
@@ -1006,19 +1019,22 @@ def get_cuda_compute_capability(device):
     ret = cuda.cuInit(0)
     if ret != _CUDA_SUCCESS:
         cuda.cuGetErrorString(ret, ctypes.byref(error_str))
-        raise RuntimeError('cuInit failed with erro code {}: {}'
-                           .format(ret, error_str.value.decode()))
+        raise RuntimeError(
+            f'cuInit failed with erro code {ret}: {error_str.value.decode()}'
+        )
 
     ret = cuda.cuDeviceGet(ctypes.byref(cuda_device), device.device_id)
     if ret != _CUDA_SUCCESS:
         cuda.cuGetErrorString(ret, ctypes.byref(error_str))
-        raise RuntimeError('cuDeviceGet failed with error code {}: {}'
-                           .format(ret, error_str.value.decode()))
+        raise RuntimeError(
+            f'cuDeviceGet failed with error code {ret}: {error_str.value.decode()}'
+        )
     ret = cuda.cuDeviceComputeCapability(ctypes.byref(cc_major), ctypes.byref(cc_minor), cuda_device)
     if ret != _CUDA_SUCCESS:
         cuda.cuGetErrorString(ret, ctypes.byref(error_str))
-        raise RuntimeError('cuDeviceComputeCapability failed with error code {}: {}'
-                           .format(ret, error_str.value.decode()))
+        raise RuntimeError(
+            f'cuDeviceComputeCapability failed with error code {ret}: {error_str.value.decode()}'
+        )
     return cc_major.value * 10 + cc_minor.value
 
 
@@ -1215,7 +1231,7 @@ def is_np_default_dtype():
     check_call(_LIB.MXIsNumpyDefaultDtype(ctypes.byref(curr)))
     return curr.value
 
-def set_np_default_dtype(is_np_default_dtype=True):  # pylint: disable=redefined-outer-name
+def set_np_default_dtype(is_np_default_dtype=True):    # pylint: disable=redefined-outer-name
     """Turns on/off NumPy default dtype semantics, because mxnet.numpy.ndarray use
     32 bit data storage as default (e.g. float32 and int 32) while offical NumPy use
     64 bit data storage as default (e.g. float64 and int64).
@@ -1246,11 +1262,10 @@ def set_np_default_dtype(is_np_default_dtype=True):  # pylint: disable=redefined
     True
     """
     global _set_np_default_dtype_logged
-    if is_np_default_dtype:
-        if not _set_np_default_dtype_logged:
-            import logging
-            logging.info('NumPy array default dtype has been changed from flaot32 to float64 in your code.')
-            _set_np_default_dtype_logged = True
+    if is_np_default_dtype and not _set_np_default_dtype_logged:
+        import logging
+        logging.info('NumPy array default dtype has been changed from flaot32 to float64 in your code.')
+        _set_np_default_dtype_logged = True
     prev = ctypes.c_bool()
     check_call(_LIB.MXSetIsNumpyDefaultDtype(ctypes.c_bool(is_np_default_dtype), ctypes.byref(prev)))
     return prev.value
@@ -1307,8 +1322,7 @@ def get_rtc_compile_opts(device):
     should_compile_to_SASS = can_compile_to_SASS and \
                              device_cc <= max_supported_cc
     device_cc_as_used = min(device_cc, max_supported_cc)
-    arch_opt = "--gpu-architecture={}_{}".format("sm" if should_compile_to_SASS else "compute",
-                                                 device_cc_as_used)
+    arch_opt = f'--gpu-architecture={"sm" if should_compile_to_SASS else "compute"}_{device_cc_as_used}'
     return [arch_opt]
 
 def set_flush_denorms(value):
@@ -1361,7 +1375,7 @@ def dtype_from_number(number):
             return _np.float64 if is_np_default_dtype() else _np.float32
     elif isinstance(number, _np.generic):
         return number.dtype
-    raise TypeError('type {} not supported'.format(str(type(number))))
+    raise TypeError(f'type {str(type(number))} not supported')
 
 # This is a wrapping of tempfile.TemporaryDirectory(), known to have cleanup issues on Windows.
 # The problem is partially handled as of Python 3.10 by the adding of a 'ignore_cleanup_errors'

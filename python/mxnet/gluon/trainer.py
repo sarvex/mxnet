@@ -80,13 +80,12 @@ class Trainer(object):
                  compression_params=None, update_on_kvstore=None):
         param_list = []
         if isinstance(params, (dict, OrderedDict)):
-            for key in sorted(list(params.keys())):
-                param_list.append(params[key])
+            param_list.extend(params[key] for key in sorted(list(params.keys())))
             params = param_list
         if not isinstance(params, (list, tuple)):
             raise ValueError(
                 "First argument must be a list or dict of Parameters, " \
-                f"got {type(params)}.")
+                    f"got {type(params)}.")
         self._params = []
         # parameters to initialize on the kvstore
         self._contains_sparse_weight = False
@@ -96,7 +95,7 @@ class Trainer(object):
             if not isinstance(param, Parameter):
                 raise ValueError(
                     "First argument must be a list or dict of Parameters, " \
-                    f"got list of {type(param)}.")
+                        f"got list of {type(param)}.")
             if param._uuid in self._param2idx:
                 # Shared parameters have same uuid; only need to store one of the shared versions
                 continue
@@ -112,10 +111,13 @@ class Trainer(object):
         optimizer_params = optimizer_params if optimizer_params else {}
         self._init_optimizer(optimizer, optimizer_params)
         self._scale = self._optimizer.rescale_grad
-        if self._optimizer.aggregate_num > 1 and update_on_kvstore is not None:
-            if update_on_kvstore:
-                raise ValueError("Cannot set update_on_kvstore=True "
-                                 "when optimizer.aggregate_num > 1.")
+        if (
+            self._optimizer.aggregate_num > 1
+            and update_on_kvstore is not None
+            and update_on_kvstore
+        ):
+            raise ValueError("Cannot set update_on_kvstore=True "
+                             "when optimizer.aggregate_num > 1.")
         if update_on_kvstore is None and self._optimizer.aggregate_num > 1:
             update_on_kvstore = False
         self._kvstore_params = {'kvstore': kvstore, 'update_on_kvstore': update_on_kvstore}
@@ -144,11 +146,11 @@ class Trainer(object):
         return devices
 
     def _init_optimizer(self, optimizer, optimizer_params):
-        param_dict = {i: param for i, param in enumerate(self._params)}
+        param_dict = dict(enumerate(self._params))
         if isinstance(optimizer, opt.Optimizer):
             assert not optimizer_params, \
-                "optimizer_params must be None if optimizer is an instance of " \
-                "Optimizer instead of str"
+                    "optimizer_params must be None if optimizer is an instance of " \
+                    "Optimizer instead of str"
             self._optimizer = optimizer
             # param_dict must not be deep copied, so that if user mutate the lr_mult
             # or wd_mult of some parameters, it takes effect.
@@ -157,7 +159,7 @@ class Trainer(object):
             self._optimizer = opt.create(optimizer, param_dict=param_dict,
                                          **optimizer_params)
         self._updaters = [opt.get_updater(self._optimizer) \
-                            for _ in self._devices]
+                                for _ in self._devices]
 
     def _init_params(self):
         """Initialize parameters in the KVStore.
@@ -190,7 +192,7 @@ class Trainer(object):
         self._kvstore = None
         self._distributed = None
         self._update_on_kvstore = None
-        self._params_to_init = [param for param in self._params]
+        self._params_to_init = list(self._params)
 
     def _init_kvstore(self):
         """Create kvstore."""
@@ -243,8 +245,9 @@ class Trainer(object):
                 update_on_kvstore = config['update_on_kvstore']
             # raise err if a custom kvstore is used for sparse training
             if kvstore is not None and not isinstance(kvstore, KVStore):
-                raise ValueError("Cannot use {} for multi-device training with sparse gradients"
-                                 .format(type(kvstore)))
+                raise ValueError(
+                    f"Cannot use {type(kvstore)} for multi-device training with sparse gradients"
+                )
 
         else:
             # Training with dense weight and dense gradients.
@@ -264,8 +267,9 @@ class Trainer(object):
             # raise err if update_on_kvstore is set to True with kvstores that do not support optimizers
             if update_on_kvstore and not kvstore.is_capable('optimizer'):
                 if config['update_on_kvstore']:
-                    raise ValueError("Please set update_on_kvstore=False "
-                                     "when training with {}".format(type(kvstore)))
+                    raise ValueError(
+                        f"Please set update_on_kvstore=False when training with {type(kvstore)}"
+                    )
                 update_on_kvstore = False
 
         # set grad compression and optimizers
@@ -329,13 +333,17 @@ class Trainer(object):
             self._kvstore.row_sparse_pull(idx, out=out, row_ids=row_id, priority=-idx)
 
     def _check_and_rescale_grad(self, scale):
-        if self._update_on_kvstore and self._distributed and self._kv_initialized:
-            if self._optimizer.rescale_grad != scale:
-                raise UserWarning('Possible change in the `batch_size` from previous '
-                                  '`step` detected. Optimizer gradient normalizing '
-                                  'factor will not change w.r.t new batch_size when '
-                                  'update_on_kvstore=True and when distributed kvstore '
-                                  'is used.')
+        if (
+            self._update_on_kvstore
+            and self._distributed
+            and self._kv_initialized
+            and self._optimizer.rescale_grad != scale
+        ):
+            raise UserWarning('Possible change in the `batch_size` from previous '
+                              '`step` detected. Optimizer gradient normalizing '
+                              'factor will not change w.r.t new batch_size when '
+                              'update_on_kvstore=True and when distributed kvstore '
+                              'is used.')
         self._optimizer.rescale_grad = scale
 
     def step(self, batch_size, ignore_stale_grad=False):
@@ -401,19 +409,13 @@ class Trainer(object):
                 if grad_list[0].stype != 'default':
                     self._kvstore.push(idx, grad_list, priority=-i)
                     if param._stype == 'default':
-                        if self._update_on_kvstore:
-                            pull_list = param.list_data()
-                        else:
-                            pull_list = param.list_grad()
+                        pull_list = param.list_data() if self._update_on_kvstore else param.list_grad()
                         self._kvstore.pull(idx, pull_list, priority=-i,
                                            ignore_sparse=self._distributed)
+                elif self._update_on_kvstore:
+                    self._kvstore.pushpull(idx, grad_list, out=param.list_data(), priority=-i)
                 else:
-                    # allreduce dense gradients if not update_on_kvstore,
-                    # otherwise push dense gradients, pull dense weights
-                    if self._update_on_kvstore:
-                        self._kvstore.pushpull(idx, grad_list, out=param.list_data(), priority=-i)
-                    else:
-                        self._kvstore.pushpull(idx, grad_list, priority=-i)
+                    self._kvstore.pushpull(idx, grad_list, priority=-i)
 
     def update(self, batch_size, ignore_stale_grad=False):
         """Makes one step of parameter update.
@@ -450,9 +452,8 @@ class Trainer(object):
 
     def _update(self, ignore_stale_grad=False):
         loss_scaler = getattr(self, '_amp_loss_scaler', None)
-        if loss_scaler is not None:
-            if loss_scaler.has_overflow(self._params):
-                return  # skip on overflow
+        if loss_scaler is not None and loss_scaler.has_overflow(self._params):
+            return  # skip on overflow
 
         updates = [[] for _ in self._updaters]
 
@@ -543,5 +544,5 @@ class Trainer(object):
                 updater.set_states(states)
                 updater.optimizer = self._updaters[0].optimizer
             self._optimizer = self._updaters[0].optimizer
-        param_dict = {i: param for i, param in enumerate(self._params)}
+        param_dict = dict(enumerate(self._params))
         self._optimizer.param_dict = param_dict

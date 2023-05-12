@@ -111,9 +111,7 @@ def measure_cost(repeat, scipy_trans_lhs, scipy_dns_lhs, func_name, *args, **kwa
     """Measure time cost of running a function
     """
     mx.nd.waitall()
-    args_list = []
-    for arg in args:
-        args_list.append(arg)
+    args_list = list(args)
     start = time.time()
     if scipy_trans_lhs:
         args_list[0] = np.transpose(args_list[0]) if scipy_dns_lhs else sp.spmatrix.transpose(args_list[0])
@@ -129,12 +127,11 @@ def _get_iter(path, data_shape, batch_size):
     data_train = mx.io.LibSVMIter(data_libsvm=path,
                                   data_shape=data_shape,
                                   batch_size=batch_size)
-    data_iter = iter(data_train)
-    return data_iter
+    return iter(data_train)
 
 
 def _line_count(path):
-    return int(subprocess.check_output('wc -l {}'.format(path), shell=True).split()[0])
+    return int(subprocess.check_output(f'wc -l {path}', shell=True).split()[0])
 
 
 def _compare_sparse_dense(data_dir, file_name, mini_file_name, feature_dim,
@@ -263,9 +260,9 @@ def test_dot_synthetic(data_dict):
     """
     # Benchmark MXNet and Scipys dot operator
     def bench_dot(lhs_shape, rhs_shape, lhs_stype, rhs_stype,
-                  lhs_den, rhs_den, trans_lhs, ctx, num_repeat=10, fw="mxnet", distribution="uniform"):
+                      lhs_den, rhs_den, trans_lhs, ctx, num_repeat=10, fw="mxnet", distribution="uniform"):
         set_default_device(ctx)
-        assert fw == "mxnet" or fw == "scipy"
+        assert fw in ["mxnet", "scipy"]
         # Set funcs
         dot_func_sparse = mx.nd.sparse.dot if fw == "mxnet" else sp.spmatrix.dot
         dot_func_dense = mx.nd.dot if fw == "mxnet" else np.dot

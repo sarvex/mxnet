@@ -67,10 +67,7 @@ def main():
     density = float(args.density)
     lhs_stype = args.lhs_stype
     rhs_stype = args.rhs_stype
-    if args.rhs_density:
-        rhs_density = float(args.rhs_density)
-    else:
-        rhs_density = density
+    rhs_density = float(args.rhs_density) if args.rhs_density else density
     dot_func = mx.nd.sparse.dot if lhs_stype == "csr" else mx.nd.dot
     check_call(_LIB.MXSetNumOMPThreads(ctypes.c_int(args.num_omp_threads)))
     bench_dot(lhs_row_dim, lhs_col_dim, rhs_col_dim, density,

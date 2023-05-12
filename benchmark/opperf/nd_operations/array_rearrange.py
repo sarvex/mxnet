@@ -56,6 +56,6 @@ def run_rearrange_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='
     # Fetch all array rerrange operators
     mx_rearrange_ops = get_all_rearrange_operators()
 
-    # Run benchmarks
-    mx_rearrange_op_results = run_op_benchmarks(mx_rearrange_ops, dtype, ctx, profiler, int64_tensor, warmup, runs)
-    return mx_rearrange_op_results
+    return run_op_benchmarks(
+        mx_rearrange_ops, dtype, ctx, profiler, int64_tensor, warmup, runs
+    )

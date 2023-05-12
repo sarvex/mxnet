@@ -214,7 +214,7 @@ class _MultiWorkerIterV1(object):
     """Internal multi-worker iterator for DataLoader."""
     def __init__(self, num_workers, dataset, batchify_fn, batch_sampler,
                  pin_memory=False, pin_device_id=0, worker_fn=worker_loop_v1):
-        assert num_workers > 0, "_MultiWorkerIter is not for {} workers".format(num_workers)
+        assert num_workers > 0, f"_MultiWorkerIter is not for {num_workers} workers"
         self._num_workers = num_workers
         self._dataset = dataset
         self._batchify_fn = batchify_fn
@@ -362,7 +362,7 @@ class DataLoaderV1(object):
         if batch_sampler is None:
             if batch_size is None:
                 raise ValueError("batch_size must be specified unless " \
-                                 "batch_sampler is specified")
+                                     "batch_sampler is specified")
             if sampler is None:
                 if shuffle:
                     sampler = _sampler.RandomSampler(len(dataset))
@@ -374,12 +374,12 @@ class DataLoaderV1(object):
             batch_sampler = _sampler.BatchSampler(
                 sampler, batch_size, last_batch if last_batch else 'keep')
         elif batch_size is not None or shuffle or sampler is not None or \
-                last_batch is not None:
+                    last_batch is not None:
             raise ValueError("batch_size, shuffle, sampler and last_batch must " \
-                             "not be specified if batch_sampler is specified.")
+                                 "not be specified if batch_sampler is specified.")
 
         self._batch_sampler = batch_sampler
-        self._num_workers = num_workers if num_workers >= 0 else 0
+        self._num_workers = max(num_workers, 0)
         if batchify_fn is None:
             if num_workers > 0:
                 self._batchify_fn = _batchify.Stack(use_shared_mem=True)
@@ -598,12 +598,12 @@ class DataLoader(object):
         self._thread_pool = thread_pool
         self._timeout = timeout
         self._mx_iter = None
-        assert timeout > 0, "timeout must be positive, given {}".format(timeout)
+        assert timeout > 0, f"timeout must be positive, given {timeout}"
 
         if batch_sampler is None:
             if batch_size is None:
                 raise ValueError("batch_size must be specified unless " \
-                                 "batch_sampler is specified")
+                                     "batch_sampler is specified")
             if sampler is None:
                 if shuffle:
                     sampler = _sampler.RandomSampler(len(dataset))
@@ -615,12 +615,12 @@ class DataLoader(object):
             batch_sampler = _sampler.BatchSampler(
                 sampler, batch_size, last_batch if last_batch else 'keep')
         elif batch_size is not None or shuffle or sampler is not None or \
-                last_batch is not None:
+                    last_batch is not None:
             raise ValueError("batch_size, shuffle, sampler and last_batch must " \
-                             "not be specified if batch_sampler is specified.")
+                                 "not be specified if batch_sampler is specified.")
 
         self._batch_sampler = batch_sampler
-        self._num_workers = num_workers if num_workers >= 0 else 0
+        self._num_workers = max(num_workers, 0)
         self._worker_pool = None
         self._prefetch = max(0, int(prefetch) if prefetch is not None else 2 * self._num_workers)
         if batchify_fn is None:
@@ -635,9 +635,8 @@ class DataLoader(object):
             # check for capability to use mx backend threadedLoader
             use_mx_iter, mx_iter_args = _check_mx_loader_capability(
                 self._dataset, self._batch_sampler, self._batchify_fn)
-            if not use_mx_iter:
-                if try_nopython:
-                    raise RuntimeError(mx_iter_args)
+            if not use_mx_iter and try_nopython:
+                raise RuntimeError(mx_iter_args)
         else:
             use_mx_iter = False
 
@@ -806,7 +805,7 @@ class _MXThreadedDataLoader(object):
             items = self._iter.getitems()
             pad = self._iter.getpad()
             if pad > 0:
-                items = tuple([x[:-pad] for x in items])
+                items = tuple(x[:-pad] for x in items)
             if len(items) < 2:
                 items = items[0]
             yield items

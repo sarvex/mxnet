@@ -81,10 +81,7 @@ def register_object(type_key=None):
         _register_object(tindex, cls)
         return cls
 
-    if isinstance(type_key, str):
-        return register
-
-    return register(type_key)
+    return register if isinstance(type_key, str) else register(type_key)
 
 
 def getitem_helper(obj, elem_getter, length, idx):
@@ -120,8 +117,7 @@ def getitem_helper(obj, elem_getter, length, idx):
         return [elem_getter(obj, i) for i in range(start, stop, step)]
 
     if idx < -length or idx >= length:
-        raise IndexError("Index out of range. size: {}, got index {}"
-                         .format(length, idx))
+        raise IndexError(f"Index out of range. size: {length}, got index {idx}")
     if idx < 0:
         idx += length
     return elem_getter(obj, idx)

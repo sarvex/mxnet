@@ -104,7 +104,7 @@ def get_caltech101_data():
         tar.close()
         print('Data extracted')
     training_path = os.path.join(data_folder, dataset_name)
-    testing_path = os.path.join(data_folder, "{}_test".format(dataset_name))
+    testing_path = os.path.join(data_folder, f"{dataset_name}_test")
     return training_path, testing_path
 
 def get_caltech101_iterator(batch_size, num_workers, dtype):
@@ -165,32 +165,31 @@ class ImagePairIter(mx.io.DataIter):
 
     def next(self):
         from PIL import Image
-        if self.count + self.batch_size <= len(self.filenames):
-            data = []
-            label = []
-            for i in range(self.batch_size):
-                fn = self.filenames[self.count]
-                self.count += 1
-                image = Image.open(fn).convert('YCbCr').split()[0]
-                if image.size[0] > image.size[1]:
-                    image = image.transpose(Image.TRANSPOSE)
-                image = mx.np.expand_dims(mx.np.array(image), axis=2)
-                target = image.copy()
-                for aug in self.input_aug:
-                    image = aug(image)
-                for aug in self.target_aug:
-                    target = aug(target)
-                data.append(image)
-                label.append(target)
-
-            data = mx.np.concatenate([mx.np.expand_dims(d, axis=0) for d in data], axis=0)
-            label = mx.np.concatenate([mx.np.expand_dims(d, axis=0) for d in label], axis=0)
-            data = [mx.np.transpose(data, axes=(0, 3, 1, 2)).astype('float32')/255]
-            label = [mx.np.transpose(label, axes=(0, 3, 1, 2)).astype('float32')/255]
-
-            return mx.io.DataBatch(data=data, label=label)
-        else:
+        if self.count + self.batch_size > len(self.filenames):
             raise StopIteration
+        data = []
+        label = []
+        for _ in range(self.batch_size):
+            fn = self.filenames[self.count]
+            self.count += 1
+            image = Image.open(fn).convert('YCbCr').split()[0]
+            if image.size[0] > image.size[1]:
+                image = image.transpose(Image.TRANSPOSE)
+            image = mx.np.expand_dims(mx.np.array(image), axis=2)
+            target = image.copy()
+            for aug in self.input_aug:
+                image = aug(image)
+            for aug in self.target_aug:
+                target = aug(target)
+            data.append(image)
+            label.append(target)
+
+        data = mx.np.concatenate([mx.np.expand_dims(d, axis=0) for d in data], axis=0)
+        label = mx.np.concatenate([mx.np.expand_dims(d, axis=0) for d in label], axis=0)
+        data = [mx.np.transpose(data, axes=(0, 3, 1, 2)).astype('float32')/255]
+        label = [mx.np.transpose(label, axes=(0, 3, 1, 2)).astype('float32')/255]
+
+        return mx.io.DataBatch(data=data, label=label)
 
     def reset(self):
         self.count = 0

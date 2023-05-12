@@ -43,7 +43,9 @@ class Confirm(object):
         self.cmds = cmds
 
     def __call__(self):
-        resp = input("This will run the following command(s) '{}' are you sure? yes / no: ".format(self.cmds))
+        resp = input(
+            f"This will run the following command(s) '{self.cmds}' are you sure? yes / no: "
+        )
         while True:
             if resp.lower() == 'yes':
                 handle_commands(self.cmds)
@@ -60,7 +62,7 @@ class CMake(object):
             self.cmake_options_yaml = cmake_options_yaml
         else:
             self.cmake_options_yaml = cmake_options_yaml_default
-        logging.info('Using {} for CMake configuration'.format(self.cmake_options_yaml))
+        logging.info(f'Using {self.cmake_options_yaml} for CMake configuration')
         self.cmake_options = None
         self.read_config()
 
@@ -73,13 +75,14 @@ class CMake(object):
         return cmd_lst
 
     def __call__(self, build_dir='build', generator='Ninja', build_cmd='ninja'):
-        logging.info("CMake / {} build in directory {}".format(
-            generator, os.path.abspath(build_dir)))
+        logging.info(
+            f"CMake / {generator} build in directory {os.path.abspath(build_dir)}"
+        )
         cmd_lst = self.cmake_command()
         os.makedirs(build_dir, exist_ok=True)
         with remember_cwd():
             os.chdir(build_dir)
-            cmd_lst.extend(['-G{}'.format(generator), '..'])
+            cmd_lst.extend([f'-G{generator}', '..'])
             logging.info('Executing: {}'.format('\t\n'.join(cmd_lst)))
             check_call(cmd_lst)
             logging.info('Now building')
@@ -111,54 +114,76 @@ def provision_virtualenv(venv_path=DEFAULT_PYENV):
         logging.warn("Can't find pip: '%s' not found", pip)
 
 
-COMMANDS = OrderedDict([
-    ('[Local] BUILD CMake/Ninja (using cmake_options.yaml (cp cmake/cmake_options.yml .) and edit) ({} virtualenv in "{}")'.format(DEFAULT_PYTHON, DEFAULT_PYENV),
+COMMANDS = OrderedDict(
     [
-        CMake(),
-        create_virtualenv_default,
-        provision_virtualenv,
-    ]),
-    ('[Local] Python Unit tests',
-        "pytest -v tests/python/unittest/"
-    ),
-    ('[Docker] Build the MXNet binary - outputs to "lib/"',
-        "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh build_ubuntu_cpu"),
-    ('[Docker] Build the Jekyll website - outputs to "docs/static_site/build/html/"',
-        "ci/build.py --platform ubuntu_cpu_jekyll /work/runtime_functions.sh build_jekyll_docs"),
-    ('[Docker] Build the Python API docs - outputs to "docs/python_docs/python/build/_build/html/"',
-        "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh build_python_docs"),
-    ('[Docker] sanity_check. Check for linting and code formatting and licenses.',
-    [
-        "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh sanity_check",
-    ]),
-    ('[Docker] Python3 CPU unittests',
-    [
-        "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh build_ubuntu_cpu_openblas",
-        "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh unittest_ubuntu_python3_cpu",
-    ]),
-    ('[Docker] Python3 GPU unittests',
-    [
-        "ci/build.py --nvidiadocker --platform ubuntu_gpu /work/runtime_functions.sh build_ubuntu_gpu",
-        "ci/build.py --nvidiadocker --platform ubuntu_gpu /work/runtime_functions.sh unittest_ubuntu_python3_gpu",
-    ]),
-    ('[Docker] Python3 GPU+oneDNN unittests',
-    [
-        "ci/build.py --nvidiadocker --platform ubuntu_gpu /work/runtime_functions.sh build_ubuntu_gpu_onednn",
-        "ci/build.py --nvidiadocker --platform ubuntu_gpu /work/runtime_functions.sh unittest_ubuntu_python3_gpu",
-    ]),
-    ('[Docker] Python3 CPU oneDNN unittests',
-    [
-        "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh build_ubuntu_cpu_onednn",
-        "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh unittest_ubuntu_python3_cpu",
-    ]),
-    ('[Docker] Python3 ARMv7 unittests (QEMU)',
-    [
-        "ci/build.py -p armv7",
-        "ci/build.py -p test.armv7 /work/runtime_functions.sh unittest_ubuntu_python3_arm"
-    ]),
-    ('Clean (RESET HARD) repository (Warning! erases local changes / DATA LOSS)',
-       Confirm("ci/docker/runtime_functions.sh clean_repo"))
-])
+        (
+            f'[Local] BUILD CMake/Ninja (using cmake_options.yaml (cp cmake/cmake_options.yml .) and edit) ({DEFAULT_PYTHON} virtualenv in "{DEFAULT_PYENV}")',
+            [
+                CMake(),
+                create_virtualenv_default,
+                provision_virtualenv,
+            ],
+        ),
+        ('[Local] Python Unit tests', "pytest -v tests/python/unittest/"),
+        (
+            '[Docker] Build the MXNet binary - outputs to "lib/"',
+            "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh build_ubuntu_cpu",
+        ),
+        (
+            '[Docker] Build the Jekyll website - outputs to "docs/static_site/build/html/"',
+            "ci/build.py --platform ubuntu_cpu_jekyll /work/runtime_functions.sh build_jekyll_docs",
+        ),
+        (
+            '[Docker] Build the Python API docs - outputs to "docs/python_docs/python/build/_build/html/"',
+            "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh build_python_docs",
+        ),
+        (
+            '[Docker] sanity_check. Check for linting and code formatting and licenses.',
+            [
+                "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh sanity_check",
+            ],
+        ),
+        (
+            '[Docker] Python3 CPU unittests',
+            [
+                "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh build_ubuntu_cpu_openblas",
+                "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh unittest_ubuntu_python3_cpu",
+            ],
+        ),
+        (
+            '[Docker] Python3 GPU unittests',
+            [
+                "ci/build.py --nvidiadocker --platform ubuntu_gpu /work/runtime_functions.sh build_ubuntu_gpu",
+                "ci/build.py --nvidiadocker --platform ubuntu_gpu /work/runtime_functions.sh unittest_ubuntu_python3_gpu",
+            ],
+        ),
+        (
+            '[Docker] Python3 GPU+oneDNN unittests',
+            [
+                "ci/build.py --nvidiadocker --platform ubuntu_gpu /work/runtime_functions.sh build_ubuntu_gpu_onednn",
+                "ci/build.py --nvidiadocker --platform ubuntu_gpu /work/runtime_functions.sh unittest_ubuntu_python3_gpu",
+            ],
+        ),
+        (
+            '[Docker] Python3 CPU oneDNN unittests',
+            [
+                "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh build_ubuntu_cpu_onednn",
+                "ci/build.py --platform ubuntu_cpu /work/runtime_functions.sh unittest_ubuntu_python3_cpu",
+            ],
+        ),
+        (
+            '[Docker] Python3 ARMv7 unittests (QEMU)',
+            [
+                "ci/build.py -p armv7",
+                "ci/build.py -p test.armv7 /work/runtime_functions.sh unittest_ubuntu_python3_arm",
+            ],
+        ),
+        (
+            'Clean (RESET HARD) repository (Warning! erases local changes / DATA LOSS)',
+            Confirm("ci/docker/runtime_functions.sh clean_repo"),
+        ),
+    ]
+)
 
 def clip(x, mini, maxi):
     return min(max(x,mini), maxi)
@@ -210,10 +235,7 @@ def build(args) -> None:
         logging.warn("virtualenv wasn't found in path, it's recommended to install virtualenv to manage python environments")
     if not pyexe:
         logging.warn("Python executable %s not found in path", args.pyexe)
-    if args.cmake_options:
-        cmake = CMake(args.cmake_options)
-    else:
-        cmake = CMake()
+    cmake = CMake(args.cmake_options) if args.cmake_options else CMake()
     cmake()
     create_virtualenv_default()
     provision_virtualenv()

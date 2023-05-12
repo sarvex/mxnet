@@ -101,10 +101,11 @@ def prepare_op_inputs(arg_params, arg_values):
     inputs = []
 
     for arg_value in arg_values:
-        inp = {}
-        for arg_name in arg_params["params"]["arg_names"]:
-            if arg_name in arg_value:
-                inp[arg_name] = arg_value[arg_name]
+        inp = {
+            arg_name: arg_value[arg_name]
+            for arg_name in arg_params["params"]["arg_names"]
+            if arg_name in arg_value
+        }
         inputs.append(inp)
     return inputs
 
@@ -159,54 +160,49 @@ def prepare_op_inputs(op, arg_params, int64_tensor):
                 arg_values[arg_name] = DEFAULTS_INPUTS["dtype_float"]
             elif op == "ravel_multi_index":
                 arg_values[arg_name] = DEFAULTS_INPUTS["ravel_data"]
-            elif op in custom_data and arg_name + "_" + op.lower() in DEFAULTS_INPUTS:
-                arg_values[arg_name] = DEFAULTS_INPUTS[arg_name + "_" + op.lower()]
-            elif arg_name + "_nd" in DEFAULTS_INPUTS:
-                arg_values[arg_name] = DEFAULTS_INPUTS[arg_name + "_nd"]
-            elif op in ops_3d and arg_name + "_3d" in DEFAULTS_INPUTS:
-                arg_values[arg_name] = DEFAULTS_INPUTS[arg_name + "_3d"]
+            elif (
+                op in custom_data
+                and f"{arg_name}_{op.lower()}" in DEFAULTS_INPUTS
+            ):
+                arg_values[arg_name] = DEFAULTS_INPUTS[f"{arg_name}_{op.lower()}"]
+            elif f"{arg_name}_nd" in DEFAULTS_INPUTS:
+                arg_values[arg_name] = DEFAULTS_INPUTS[f"{arg_name}_nd"]
+            elif op in ops_3d and f"{arg_name}_3d" in DEFAULTS_INPUTS:
+                arg_values[arg_name] = DEFAULTS_INPUTS[f"{arg_name}_3d"]
             elif op == 'softmax_cross_entropy':
-                arg_values[arg_name] = DEFAULTS_INPUTS[arg_name + "_smce"]
-            elif op in ops_4d and arg_name + "_4d" in DEFAULTS_INPUTS:
-                arg_values[arg_name] = DEFAULTS_INPUTS[arg_name + "_4d"]
-            elif op in ops_dim1 and arg_name + "_dim1" in DEFAULTS_INPUTS:
-                arg_values[arg_name] = DEFAULTS_INPUTS[arg_name + "_dim1"]
-            # default case
+                arg_values[arg_name] = DEFAULTS_INPUTS[f"{arg_name}_smce"]
+            elif op in ops_4d and f"{arg_name}_4d" in DEFAULTS_INPUTS:
+                arg_values[arg_name] = DEFAULTS_INPUTS[f"{arg_name}_4d"]
+            elif op in ops_dim1 and f"{arg_name}_dim1" in DEFAULTS_INPUTS:
+                arg_values[arg_name] = DEFAULTS_INPUTS[f"{arg_name}_dim1"]
             elif arg_name in DEFAULTS_INPUTS:
                 arg_values[arg_name] = DEFAULTS_INPUTS[arg_name]
-        else:
-            # arg_type is not NDArray
-            if op in int_only and arg_name == "dtype":
-                arg_values[arg_name] = DEFAULTS_INPUTS["dtype_int"]
-            elif (op.startswith(('random','sample')) or op in float_only) and arg_name == "dtype":
-                arg_values[arg_name] = DEFAULTS_INPUTS["dtype_float"]
-            elif op in custom_data and arg_name + "_" + op.lower() in DEFAULTS_INPUTS:
-                arg_values[arg_name] = DEFAULTS_INPUTS[arg_name + "_" + op.lower()]
-            elif op in ops_4d and arg_name + "_4d" in DEFAULTS_INPUTS:
-                arg_values[arg_name] = DEFAULTS_INPUTS[arg_name + "_4d"]
-            elif op in ops_dim1 and arg_name + "_dim1" in DEFAULTS_INPUTS:
-                arg_values[arg_name] = DEFAULTS_INPUTS[arg_name + "_dim1"]
-            #default case
-            elif arg_name in DEFAULTS_INPUTS:
-                arg_values[arg_name] = DEFAULTS_INPUTS[arg_name]
+        elif op in int_only and arg_name == "dtype":
+            arg_values[arg_name] = DEFAULTS_INPUTS["dtype_int"]
+        elif (op.startswith(('random','sample')) or op in float_only) and arg_name == "dtype":
+            arg_values[arg_name] = DEFAULTS_INPUTS["dtype_float"]
+        elif op in custom_data and f"{arg_name}_{op.lower()}" in DEFAULTS_INPUTS:
+            arg_values[arg_name] = DEFAULTS_INPUTS[f"{arg_name}_{op.lower()}"]
+        elif op in ops_4d and f"{arg_name}_4d" in DEFAULTS_INPUTS:
+            arg_values[arg_name] = DEFAULTS_INPUTS[f"{arg_name}_4d"]
+        elif op in ops_dim1 and f"{arg_name}_dim1" in DEFAULTS_INPUTS:
+            arg_values[arg_name] = DEFAULTS_INPUTS[f"{arg_name}_dim1"]
+        elif arg_name in DEFAULTS_INPUTS:
+            arg_values[arg_name] = DEFAULTS_INPUTS[arg_name]
 
     # Number of different inputs we want to use to test
     # the operator
-    num_input_combinations = max([len(value) for value in arg_values.values()])
+    num_input_combinations = max(len(value) for value in arg_values.values())
 
     # Prepare key/value args for param to input value
     for idx in range(num_input_combinations):
-        inp = {}
-        for arg_name in arg_params["params"]["arg_names"]:
-            if arg_name in arg_values:
-                if len(arg_values[arg_name]) == num_input_combinations:
-                    inp[arg_name] = arg_values[arg_name][idx]
-                else:
-                    # This is required when we want to use a param same across all
-                    # input combination. Example: keeping low and high same for random sampling
-                    # operator for all different types of Tensor shape.
-                    inp[arg_name] = arg_values[arg_name][0]
-
+        inp = {
+            arg_name: arg_values[arg_name][idx]
+            if len(arg_values[arg_name]) == num_input_combinations
+            else arg_values[arg_name][0]
+            for arg_name in arg_params["params"]["arg_names"]
+            if arg_name in arg_values
+        }
         inputs.append(inp)
     return inputs
 
@@ -224,14 +220,15 @@ def get_all_unary_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for unary broadcast operators
-    unary_broadcast_mx_operators = {}
-    for op_name, op_params in mx_operators.items():
-        if (op_params["params"]["narg"] == 1 and \
-                "data" in op_params["params"]["arg_names"]) or \
-                op_name in cast_ops:
-            unary_broadcast_mx_operators[op_name] = mx_operators[op_name]
-    return unary_broadcast_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, op_params in mx_operators.items()
+        if (
+            op_params["params"]["narg"] == 1
+            and "data" in op_params["params"]["arg_names"]
+        )
+        or op_name in cast_ops
+    }
 
 
 def get_all_broadcast_binary_operators():
@@ -244,14 +241,14 @@ def get_all_broadcast_binary_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for binary broadcast operators
-    binary_broadcast_mx_operators = {}
-    for op_name, op_params in mx_operators.items():
-        if op_name.startswith("broadcast_") and op_params["params"]["narg"] == 2 and \
-                "lhs" in op_params["params"]["arg_names"] and \
-                "rhs" in op_params["params"]["arg_names"]:
-            binary_broadcast_mx_operators[op_name] = mx_operators[op_name]
-    return binary_broadcast_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, op_params in mx_operators.items()
+        if op_name.startswith("broadcast_")
+        and op_params["params"]["narg"] == 2
+        and "lhs" in op_params["params"]["arg_names"]
+        and "rhs" in op_params["params"]["arg_names"]
+    }
 
 
 def get_all_misc_binary_operators():
@@ -264,14 +261,11 @@ def get_all_misc_binary_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for miscellaneous binary operators
-    binary_misc_mx_operators = {}
-    for op_name, _ in mx_operators.items():
-        if "choose_element_0index" == op_name:
-            binary_misc_mx_operators[op_name] = mx_operators[op_name]
-        elif "reshape_like" == op_name:
-            binary_misc_mx_operators[op_name] = mx_operators[op_name]
-    return binary_misc_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, _ in mx_operators.items()
+        if op_name in ["choose_element_0index", "reshape_like"]
+    }
 
 
 def get_all_elemen_wise_binary_operators():
@@ -291,7 +285,7 @@ def get_all_elemen_wise_binary_operators():
                 "lhs" in op_params["params"]["arg_names"] and \
                 "rhs" in op_params["params"]["arg_names"]:
             binary_elemen_wise_mx_operators[op_name] = mx_operators[op_name]
-        elif "ElementWiseSum" == op_name:
+        elif op_name == "ElementWiseSum":
             binary_elemen_wise_mx_operators[op_name] = mx_operators[op_name]
     return binary_elemen_wise_mx_operators
 
@@ -309,12 +303,12 @@ def get_all_random_sampling_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for Random Sampling operators
-    random_sampling_mx_operators = {}
-    for op_name, _ in mx_operators.items():
-        if op_name.startswith(("random_", "sample_")) or op_name in additional_random_sampling_ops:
-            random_sampling_mx_operators[op_name] = mx_operators[op_name]
-    return random_sampling_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, _ in mx_operators.items()
+        if op_name.startswith(("random_", "sample_"))
+        or op_name in additional_random_sampling_ops
+    }
 
 
 def get_all_linalg_operators():
@@ -332,12 +326,15 @@ def get_all_linalg_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for Linear Algebra operators
-    linalg_mx_operators = {}
-    for op_name, _ in mx_operators.items():
-        if (op_name.startswith("linalg_") and op_name not in independently_tested) or op_name in other_linalg_ops:
-            linalg_mx_operators[op_name] = mx_operators[op_name]
-    return linalg_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, _ in mx_operators.items()
+        if (
+            op_name.startswith("linalg_")
+            and op_name not in independently_tested
+        )
+        or op_name in other_linalg_ops
+    }
 
 
 def get_all_reduction_operators():
@@ -350,14 +347,15 @@ def get_all_reduction_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for Reduction operators
-    reduction_mx_operators = {}
-    for op_name, op_params in mx_operators.items():
-        if (op_params["params"]["narg"] == 4 and \
-                set(["data", "axis", "exclude", "keepdims"]).issubset(set(op_params["params"]["arg_names"])) \
-                or op_name == 'norm'):
-            reduction_mx_operators[op_name] = mx_operators[op_name]
-    return reduction_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, op_params in mx_operators.items()
+        if op_params["params"]["narg"] == 4
+        and {"data", "axis", "exclude", "keepdims"}.issubset(
+            set(op_params["params"]["arg_names"])
+        )
+        or op_name == 'norm'
+    }
 
 def get_all_nn_basic_operators():
     """Gets all NN basic operators registered with MXNet.
@@ -374,12 +372,11 @@ def get_all_nn_basic_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for NN Basic operators
-    nn_basic_mx_operators = {}
-    for op_name, _ in mx_operators.items():
-         if op_name in nn_basic_ops:
-             nn_basic_mx_operators[op_name] = mx_operators[op_name]
-    return nn_basic_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, _ in mx_operators.items()
+        if op_name in nn_basic_ops
+    }
 
 def get_all_nn_activation_operators():
     """Gets all NN Activation operators registered with MXNet.
@@ -393,12 +390,11 @@ def get_all_nn_activation_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for NN Activation operators
-    nn_activation_mx_operators = {}
-    for op_name, _ in mx_operators.items():
-         if op_name in nn_activation_ops:
-             nn_activation_mx_operators[op_name] = mx_operators[op_name]
-    return nn_activation_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, _ in mx_operators.items()
+        if op_name in nn_activation_ops
+    }
 
 
 def get_all_optimizer_operators():
@@ -416,12 +412,11 @@ def get_all_optimizer_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for Optimizer operators
-    optimizer_mx_operators = {}
-    for op_name, _ in mx_operators.items():
-        if op_name in optimizer_ops:
-            optimizer_mx_operators[op_name] = mx_operators[op_name]
-    return optimizer_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, _ in mx_operators.items()
+        if op_name in optimizer_ops
+    }
 
 def get_all_sorting_searching_operators():
     """Gets all Sorting and Searching operators registered with MXNet.
@@ -435,12 +430,11 @@ def get_all_sorting_searching_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for Sort and search operators
-    sort_search_mx_operators = {}
-    for op_name, _ in mx_operators.items():
-        if op_name in sort_search_ops:
-            sort_search_mx_operators[op_name] = mx_operators[op_name]
-    return sort_search_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, _ in mx_operators.items()
+        if op_name in sort_search_ops
+    }
 
 
 def get_all_rearrange_operators():
@@ -456,12 +450,11 @@ def get_all_rearrange_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for Array Rearrange operators
-    rearrange_mx_operators = {}
-    for op_name, _ in mx_operators.items():
-        if op_name in rearrange_ops:
-            rearrange_mx_operators[op_name] = mx_operators[op_name]
-    return rearrange_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, _ in mx_operators.items()
+        if op_name in rearrange_ops
+    }
 
 
 def get_remaining_miscellaneous_operators():
@@ -476,12 +469,11 @@ def get_remaining_miscellaneous_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for Miscellaneous operators
-    misc_mx_operators = {}
-    for op_name, _ in mx_operators.items():
-        if op_name in misc_ops:
-            misc_mx_operators[op_name] = mx_operators[op_name]
-    return misc_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, _ in mx_operators.items()
+        if op_name in misc_ops
+    }
 
 def get_all_indexing_routines():
     """Gets all indexing routines registered with MXNet.
@@ -501,12 +493,11 @@ def get_all_indexing_routines():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for Indexing routines
-    indexing_mx_routines = {}
-    for op_name, _ in mx_operators.items():
-        if op_name in indexing_routines:
-            indexing_mx_routines[op_name] = mx_operators[op_name]
-    return indexing_mx_routines
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, _ in mx_operators.items()
+        if op_name in indexing_routines
+    }
 
 
 def get_all_loss_operators():
@@ -521,12 +512,11 @@ def get_all_loss_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for NN Loss operators
-    loss_mx_operators = {}
-    for op_name, _ in mx_operators.items():
-        if op_name in loss_ops:
-            loss_mx_operators[op_name] = mx_operators[op_name]
-    return loss_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, _ in mx_operators.items()
+        if op_name in loss_ops
+    }
 
 
 def get_all_shape_operators():
@@ -542,12 +532,11 @@ def get_all_shape_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for Array Shape Manipulation operators
-    shape_mx_operators = {}
-    for op_name, op_params in mx_operators.items():
-        if op_name in shape_ops:
-            shape_mx_operators[op_name] = mx_operators[op_name]
-    return shape_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, op_params in mx_operators.items()
+        if op_name in shape_ops
+    }
 
 
 def get_all_expanding_operators():
@@ -563,12 +552,11 @@ def get_all_expanding_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for Array Expanding operators
-    expanding_mx_operators = {}
-    for op_name, op_params in mx_operators.items():
-        if op_name in expanding_ops:
-            expanding_mx_operators[op_name] = mx_operators[op_name]
-    return expanding_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, op_params in mx_operators.items()
+        if op_name in expanding_ops
+    }
 
 
 def get_all_rounding_operators():
@@ -584,12 +572,11 @@ def get_all_rounding_operators():
     # Get all mxnet operators
     mx_operators = _get_all_mxnet_operators()
 
-    # Filter for Array Rounding operators
-    rounding_mx_operators = {}
-    for op_name, op_params in mx_operators.items():
-        if op_name in rounding_ops:
-            rounding_mx_operators[op_name] = mx_operators[op_name]
-    return rounding_mx_operators
+    return {
+        op_name: mx_operators[op_name]
+        for op_name, op_params in mx_operators.items()
+        if op_name in rounding_ops
+    }
 
 
 def get_operators_with_no_benchmark(operators_with_benchmark):
@@ -621,8 +608,5 @@ def get_current_runtime_features():
         Example: {'runtime_features': {'OPENCV' : '✔ OPENCV', 'CUDA': '✖ CUDA'}}
     """
     features = runtime.Features()
-    runtime_features = {}
-    for feature, config in sorted(features.items(), key=itemgetter(0)):
-        runtime_features[feature] = config
-
+    runtime_features = dict(sorted(features.items(), key=itemgetter(0)))
     return {'runtime_features': runtime_features}

@@ -33,7 +33,7 @@ import shutil
 import codecs
 
 def gen_enum_value(value):
-    return 'k' + value[0].upper() + value[1:]
+    return f'k{value[0].upper()}{value[1:]}'
 
 class EnumType:
     name = ''
@@ -51,23 +51,23 @@ class EnumType:
             logging.warn(f"trying to parse none-enum type as enum: {typeString}")
     def GetDefinitionString(self, indent = 0):
         indentStr = ' ' * indent
-        ret = indentStr + 'enum class {} {{\n'.format(self.name)
+        ret = f'{indentStr}enum class {self.name} {{\n'
         for i in range(0, len(self.enumValues)):
             ret = ret + indentStr + f'  {gen_enum_value(self.enumValues[i])} = {i}'
             if (i != len(self.enumValues) -1):
-                ret = ret + ","
+                ret = f"{ret},"
             ret = ret + "\n"
         ret = ret + "};\n"
         return ret
     def GetDefaultValueString(self, value = ''):
-        return self.name + "::" + gen_enum_value(value)
+        return f"{self.name}::{gen_enum_value(value)}"
     def GetEnumStringArray(self, indent = 0):
         indentStr = ' ' * indent
-        ret = indentStr + 'static const char *{}Values[] = {{\n'.format(self.name)
+        ret = f'{indentStr}static const char *{self.name}Values[] = {{\n'
         for i in range(0, len(self.enumValues)):
             ret = ret + indentStr + f'  "{self.enumValues[i]}"'
             if (i != len(self.enumValues) -1):
-                ret = ret + ","
+                ret = f"{ret},"
             ret = ret + "\n"
         ret = ret + indentStr + "};\n"
         return ret
@@ -121,7 +121,6 @@ class Arg:
                 self.type = self.typeDict[typeString.split(',')[0]]
             except:
                 print(f'argument "{argName}" of operator "{opName}" has unknown type "{typeString}"')
-                pass
         if typeString.find('default=') != -1:
             self.hasDefault = True
             self.defaultString = typeString.split('default=')[1].strip().strip("'")
@@ -130,22 +129,19 @@ class Arg:
             elif self.isEnum:
                 self.defaultString = self.enum.GetDefaultValueString(self.defaultString)
             elif self.defaultString == 'None':
-                self.defaultString = self.type + '()'
+                self.defaultString = f'{self.type}()'
             elif self.type == "bool":
-                if self.defaultString == "1" or self.defaultString == "True":
-                    self.defaultString = "true"
-                else:
-                    self.defaultString = "false"
+                self.defaultString = "true" if self.defaultString in ["1", "True"] else "false"
             elif self.defaultString[0] == '(':
-                self.defaultString = 'Shape' + self.defaultString
+                self.defaultString = f'Shape{self.defaultString}'
             elif self.defaultString[0] == '[':
-                self.defaultString = 'Shape(' + self.defaultString[1:-1] + ")"
+                self.defaultString = f'Shape({self.defaultString[1:-1]})'
             elif self.type == 'dmlc::optional<int>':
-                self.defaultString = self.type + '(' + self.defaultString + ')'
+                self.defaultString = f'{self.type}({self.defaultString})'
             elif self.type == 'dmlc::optional<bool>':
-                self.defaultString = self.type + '(' + self.defaultString + ')'
+                self.defaultString = f'{self.type}({self.defaultString})'
             elif typeString.startswith('caffe-layer-parameter'):
-                self.defaultString = 'textToCaffeLayerParameter(' + self.MakeCString(self.defaultString) + ')'
+                self.defaultString = f'textToCaffeLayerParameter({self.MakeCString(self.defaultString)})'
                 hasCaffe = True
 
     def MakeCString(self, str):
@@ -160,8 +156,7 @@ class Arg:
         argName = ''
         for an in argNameWords:
             argName = argName + an[0].upper() + an[1:]
-        typeName = a + opName[1:] + argName
-        return typeName
+        return a + opName[1:] + argName
 
 class Op:
     name = ''
@@ -173,15 +168,11 @@ class Op:
         self.description = description
         # add a 'name' argument
         nameArg = Arg(self.name, \
-                      'symbol_name', \
-                      'string', \
-                      'name of the resulting symbol')
+                          'symbol_name', \
+                          'string', \
+                          'name of the resulting symbol')
         args.insert(0, nameArg)
-        # reorder arguments, put those with default value to the end
-        orderedArgs = []
-        for arg in args:
-            if not arg.hasDefault:
-                orderedArgs.append(arg)
+        orderedArgs = [arg for arg in args if not arg.hasDefault]
         for arg in args:
             if arg.hasDefault:
                 orderedArgs.append(arg)
@@ -207,11 +198,11 @@ class Op:
         return ret
 
     def GenDescription(self, desc = '', \
-                        firstLineHead = ' * \\brief ', \
-                        otherLineHead = ' *        '):
+                            firstLineHead = ' * \\brief ', \
+                            otherLineHead = ' *        '):
         ret = ''
         descs = self.WrapDescription(desc)
-        ret = ret + firstLineHead
+        ret += firstLineHead
         if len(descs) == 0:
           return ret.rstrip()
         ret = (ret + descs[0]).rstrip() + '\n'
@@ -227,24 +218,24 @@ class Op:
             if arg.isEnum and use_name:
                 # comments
                 ret = ret + self.GenDescription(arg.description, \
-                                        '/*! \\brief ', \
-                                        ' *        ')
+                                            '/*! \\brief ', \
+                                            ' *        ')
                 ret = ret + " */\n"
                 # definition
                 ret = ret + arg.enum.GetDefinitionString(indent) + '\n'
         # create function comments
         ret = ret + self.GenDescription(self.description, \
-                                        '/*!\n * \\brief ', \
-                                        ' *        ')
+                                            '/*!\n * \\brief ', \
+                                            ' *        ')
         for arg in self.args:
             if arg.name != 'symbol_name' or use_name:
-                ret = ret + self.GenDescription(arg.name + ' ' + arg.description, \
-                                        ' * \\param ', \
-                                        ' *        ')
+                ret = ret + self.GenDescription(
+                    f'{arg.name} {arg.description}', ' * \\param ', ' *        '
+                )
         ret = ret + " * \\return new symbol\n"
         ret = ret + " */\n"
         # create function header
-        declFirstLine = indentStr + f'inline Symbol {self.name}('
+        declFirstLine = f'{indentStr}inline Symbol {self.name}('
         ret = ret + declFirstLine
         argIndentStr = ' ' * len(declFirstLine)
         arg_start = 0 if use_name else 1
@@ -262,15 +253,17 @@ class Op:
         # now generate code
         ret = ret + indentStr + f'  return Operator(\"{self.name}\")\n'
         for arg in self.args:   # set params
-            if arg.type == 'Symbol' or \
-                arg.type == 'const std::string&' or \
-                arg.type == 'const std::vector<Symbol>&':
+            if arg.type in [
+                'Symbol',
+                'const std::string&',
+                'const std::vector<Symbol>&',
+            ]:
                 continue
             v = arg.name
             if arg.isEnum:
                 v = arg.enum.GetConvertEnumVariableToString(v)
             ret = ret + indentStr + ' ' * 11 + \
-                f'.SetParam(\"{arg.name}\", {v})\n'
+                    f'.SetParam(\"{arg.name}\", {v})\n'
         #ret = ret[:-1]  # get rid of the last \n
         symbols = ''
         inputAlreadySet = False
@@ -282,7 +275,7 @@ class Op:
             #    symbols = symbols + ', '
             #symbols = symbols + arg.name
             ret = ret + indentStr + ' ' * 11 + \
-                f'.SetInput(\"{arg.name}\", {arg.name})\n'
+                    f'.SetInput(\"{arg.name}\", {arg.name})\n'
         for arg in self.args:   # set input arrays vector<Symbol>
             if arg.type != 'const std::vector<Symbol>&':
                 continue
@@ -290,19 +283,18 @@ class Op:
                 logging.error(f"op {self.name} has both Symbol[] and Symbol inputs!")
             inputAlreadySet = True
             symbols = arg.name
-            ret = ret + f'({symbols})\n'
+            ret = f'{ret}({symbols})\n'
         ret = ret + indentStr + ' ' * 11
         if use_name:
             ret = ret + '.CreateSymbol(symbol_name);\n'
         else:
             ret = ret + '.CreateSymbol();\n'
-        ret = ret + indentStr + '}\n'
-        return ret
+        return ret + indentStr + '}\n'
 
     def GetArgString(self, arg):
         ret = f'{arg.type} {arg.name}'
         if arg.hasDefault:
-            ret = ret + ' = ' + arg.defaultString
+            ret = f'{ret} = {arg.defaultString}'
         return ret
 
 
@@ -432,8 +424,9 @@ if __name__ == "__main__":
       if len(temp_file_name) > 0:
         os.remove(temp_file_name)
       raise(e)
-    if os.path.exists(output_file):
-      if not filecmp.cmp(temp_file_name, output_file):
-          os.remove(output_file)
+    if os.path.exists(output_file) and not filecmp.cmp(
+        temp_file_name, output_file
+    ):
+        os.remove(output_file)
     if not os.path.exists(output_file):
       shutil.move(temp_file_name, output_file)

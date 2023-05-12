@@ -109,6 +109,7 @@ def print_summary(symbol, shape=None, line_length=120, positions=[.44, .64, .74,
             line = line[:positions[i]]
             line += ' ' * (positions[i] - len(line))
         print(line)
+
     print('_' * line_length)
     print_row(to_display, positions)
     print('=' * line_length)
@@ -137,10 +138,7 @@ def print_summary(symbol, shape=None, line_length=120, positions=[.44, .64, .74,
                     # add precede
                     pre_node.append(input_name)
                     if show_shape:
-                        if input_node["op"] != "null":
-                            key = input_name + "_output"
-                        else:
-                            key = input_name
+                        key = f"{input_name}_output" if input_node["op"] != "null" else input_name
                         if key in shape_dict:
                             shape = shape_dict[key][1:]
                             pre_filter = pre_filter + int(shape[0])
@@ -171,10 +169,7 @@ def print_summary(symbol, shape=None, line_length=120, positions=[.44, .64, .74,
                 cur_param = int(num_filter) * 2
         elif op == 'Embedding':
             cur_param = int(node["attrs"]['input_dim']) * int(node["attrs"]['output_dim'])
-        if not pre_node:
-            first_connection = ''
-        else:
-            first_connection = pre_node[0]
+        first_connection = '' if not pre_node else pre_node[0]
         fields = [node['name'] + '(' + op + ')',
                   "x".join([str(x) for x in out_shape]),
                   cur_param,
@@ -185,20 +180,17 @@ def print_summary(symbol, shape=None, line_length=120, positions=[.44, .64, .74,
                 fields = ['', '', '', pre_node[i]]
                 print_row(fields, positions)
         return cur_param
+
     total_params = 0
     for i, node in enumerate(nodes):
         out_shape = []
         op = node["op"]
         if op == "null" and i > 0:
             continue
-        if op != "null" or i in heads:
-            if show_shape:
-                if op != "null":
-                    key = node["name"] + "_output"
-                else:
-                    key = node["name"]
-                if key in shape_dict:
-                    out_shape = shape_dict[key][1:]
+        if (op != "null" or i in heads) and show_shape:
+            key = node["name"] + "_output" if op != "null" else node["name"]
+            if key in shape_dict:
+                out_shape = shape_dict[key][1:]
         total_params += print_layer_summary(nodes[i], out_shape)
         if i == len(nodes) - 1:
             print('=' * line_length)
@@ -289,11 +281,14 @@ def plot_network(symbol, title="plot", save_format='pdf', shape=None, dtype=None
     conf = json.loads(symbol.tojson())
     nodes = conf["nodes"]
     # check if multiple nodes have the same name
-    if len(nodes) != len(set([node["name"] for node in nodes])):
+    if len(nodes) != len({node["name"] for node in nodes}):
         seen_nodes = set()
         # find all repeated names
-        repeated = set(node['name'] for node in nodes if node['name'] in seen_nodes
-                       or seen_nodes.add(node['name']))
+        repeated = {
+            node['name']
+            for node in nodes
+            if node['name'] in seen_nodes or seen_nodes.add(node['name'])
+        }
         warning_message = "There are multiple variables with the same name in your graph, " \
                           "this may result in cyclic graph. Repeated names: " + ','.join(repeated)
         warnings.warn(warning_message, RuntimeWarning)
@@ -375,51 +370,50 @@ def plot_network(symbol, title="plot", save_format='pdf', shape=None, dtype=None
         dot.node(name=name, label=label, **attr)
 
     # add edges
-    for node in nodes:          # pylint: disable=too-many-nested-blocks
+    for node in nodes:      # pylint: disable=too-many-nested-blocks
         op = node["op"]
         name = node["name"]
         if op == "null":
             continue
-        else:
-            inputs = node["inputs"]
+        inputs = node["inputs"]
 
-            if node['op'] == '_contrib_BilinearResize2D':
-                inputs = [inputs[0]]
+        if node['op'] == '_contrib_BilinearResize2D':
+            inputs = [inputs[0]]
 
-            for item in inputs:
-                input_node = nodes[item[0]]
-                input_name = input_node["name"]
-                if input_name not in hidden_nodes:
-                    attr = {"dir": "back", 'arrowtail':'open', 'label': ''}
+        for item in inputs:
+            input_node = nodes[item[0]]
+            input_name = input_node["name"]
+            if input_name not in hidden_nodes:
+                attr = {"dir": "back", 'arrowtail':'open', 'label': ''}
                     # add shapes
-                    if draw_shape:
-                        if input_node["op"] != "null":
-                            key = input_name + "_output"
-                            if "attrs" in input_node:
-                                params = input_node["attrs"]
-                                if "num_outputs" in params:
-                                    key += str(int(params["num_outputs"]) - 1)
-                            shape = shape_dict[key][1:]
-                            label = "x".join([str(x) for x in shape])
-                            attr["label"] = label
-                        else:
-                            key = input_name
-                            shape = shape_dict[key][1:]
-                            label = "x".join([str(x) for x in shape])
-                            attr["label"] = label
-                    if draw_type:
-                        if input_node["op"] != "null":
-                            key = input_name + "_output"
-                            if "attrs" in input_node:
-                                params = input_node["attrs"]
-                                if "num_outputs" in params:
-                                    key += str(int(params["num_outputs"]) - 1)
-                            dtype = type_dict[key]
-                            attr["label"] += '(' + dtype.__name__ + ')'
-                        else:
-                            key = input_name
-                            dtype = type_dict[key]
-                            attr["label"] += '(' + dtype.__name__ + ')'
-                    dot.edge(tail_name=name, head_name=input_name, **attr)
+                if draw_shape:
+                    if input_node["op"] != "null":
+                        key = f"{input_name}_output"
+                        if "attrs" in input_node:
+                            params = input_node["attrs"]
+                            if "num_outputs" in params:
+                                key += str(int(params["num_outputs"]) - 1)
+                        shape = shape_dict[key][1:]
+                        label = "x".join([str(x) for x in shape])
+                        attr["label"] = label
+                    else:
+                        key = input_name
+                        shape = shape_dict[key][1:]
+                        label = "x".join([str(x) for x in shape])
+                        attr["label"] = label
+                if draw_type:
+                    if input_node["op"] != "null":
+                        key = f"{input_name}_output"
+                        if "attrs" in input_node:
+                            params = input_node["attrs"]
+                            if "num_outputs" in params:
+                                key += str(int(params["num_outputs"]) - 1)
+                        dtype = type_dict[key]
+                        attr["label"] += f'({dtype.__name__})'
+                    else:
+                        key = input_name
+                        dtype = type_dict[key]
+                        attr["label"] += f'({dtype.__name__})'
+                dot.edge(tail_name=name, head_name=input_name, **attr)
 
     return dot

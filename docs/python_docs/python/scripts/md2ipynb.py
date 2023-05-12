@@ -29,7 +29,7 @@ def md2ipynb():
     timeout = 60 * 60
     # if enable evaluation
     do_eval = int(os.environ.get('EVAL', True))
-    
+
     # Skip these notebooks as some APIs will no longer be used
     skip_list = ["pytorch.md", "mnist.md", "custom-loss.md", "fit_api_tutorial.md", \
         "01-ndarray-intro.md", "02-ndarray-operations.md", "03-ndarray-contexts.md", \
@@ -43,11 +43,10 @@ def md2ipynb():
     reader = notedown.MarkdownReader(match='strict')
     with open(input_fn, 'r', encoding="utf8") as f:
         notebook = reader.read(f)
-    if do_eval:
-        if not any([i in input_fn for i in ignore_execution]):
-            tic = time.time()
-            notedown.run(notebook, timeout)
-            print(f'{src_fn}: Evaluated {input_fn} in {time.time()-tic} sec')
+    if do_eval and all(i not in input_fn for i in ignore_execution):
+        tic = time.time()
+        notedown.run(notebook, timeout)
+        print(f'{src_fn}: Evaluated {input_fn} in {time.time()-tic} sec')
     # need to add language info to for syntax highlight
     notebook['metadata'].update({'language_info':{'name':'python'}})
     with open(output_fn, 'w', encoding='utf-8') as f:

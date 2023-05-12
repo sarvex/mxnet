@@ -221,7 +221,9 @@ def _register_array_function():
     """
     dup = _find_duplicate(_NUMPY_ARRAY_FUNCTION_LIST)
     if dup is not None:
-        raise ValueError('Duplicate operator name {} in _NUMPY_ARRAY_FUNCTION_LIST'.format(dup))
+        raise ValueError(
+            f'Duplicate operator name {dup} in _NUMPY_ARRAY_FUNCTION_LIST'
+        )
     for op_name in _NUMPY_ARRAY_FUNCTION_LIST:
         strs = op_name.split('.')
         if len(strs) == 1:
@@ -235,8 +237,9 @@ def _register_array_function():
             onp_op = getattr(onp_submodule, strs[1])
             setattr(mx_np_submodule, strs[1], _implements(onp_op)(mx_np_op))
         else:
-            raise ValueError('Does not support registering __array_function__ protocol '
-                             'for operator {}'.format(op_name))
+            raise ValueError(
+                f'Does not support registering __array_function__ protocol for operator {op_name}'
+            )
 
 
 # https://docs.scipy.org/doc/numpy/reference/ufuncs.html#available-ufuncs
@@ -321,13 +324,13 @@ def _register_array_ufunc():
     """
     dup = _find_duplicate(_NUMPY_ARRAY_UFUNC_LIST)
     if dup is not None:
-        raise ValueError('Duplicate operator name {} in _NUMPY_ARRAY_UFUNC_LIST'.format(dup))
+        raise ValueError(f'Duplicate operator name {dup} in _NUMPY_ARRAY_UFUNC_LIST')
     for op_name in _NUMPY_ARRAY_UFUNC_LIST:
         try:
             mx_np_op = getattr(mx_np, op_name)
             _NUMPY_ARRAY_UFUNC_DICT[op_name] = mx_np_op
         except AttributeError:
-            raise AttributeError('mxnet.numpy does not have operator named {}'.format(op_name))
+            raise AttributeError(f'mxnet.numpy does not have operator named {op_name}')
 
 
 _register_array_function()

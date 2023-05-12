@@ -21,6 +21,7 @@
 """Lint helper to generate lint summary of source.
 Copyright by Contributors
 """
+
 from __future__ import print_function
 import codecs
 import sys
@@ -30,8 +31,8 @@ import cpplint
 from cpplint import _cpplint_state
 from pylint import epylint
 
-CXX_SUFFIX = set(['cc', 'c', 'cpp', 'h', 'cu', 'hpp'])
-PYTHON_SUFFIX = set(['py'])
+CXX_SUFFIX = {'cc', 'c', 'cpp', 'h', 'cu', 'hpp'}
+PYTHON_SUFFIX = {'py'}
 
 class LintHelper(object):
     """Class to help runing the lint and records summary"""
@@ -61,7 +62,7 @@ class LintHelper(object):
         self.pylint_opts = ['--extension-pkg-whitelist=numpy',
                             '--disable=' + ','.join(pylint_disable)]
 
-        self.pylint_cats = set(['error', 'warning', 'convention', 'refactor'])
+        self.pylint_cats = {'error', 'warning', 'convention', 'refactor'}
         # setup cpp lint
         cpplint_args = ['.', '--extensions=' + (','.join(CXX_SUFFIX))]
         _ = cpplint.ParseArguments(cpplint_args)
@@ -138,7 +139,7 @@ def get_header_guard_dmlc(filename):
         for spath in inc_list:
             prefix = spath + os.sep
             if file_path_from_root.startswith(prefix):
-                file_path_from_root = re.sub('^' + prefix, '', file_path_from_root)
+                file_path_from_root = re.sub(f'^{prefix}', '', file_path_from_root)
                 break
     return re.sub(r'[-./\s]', '_', file_path_from_root).upper() + '_'
 
@@ -151,7 +152,7 @@ def process(fname, allow_type):
     if fname.endswith('op.h'):
       return
     arr = fname.rsplit('.', 1)
-    if fname.find('#') != -1 or arr[-1] not in allow_type:
+    if '#' in fname or arr[-1] not in allow_type:
         return
     if arr[-1] in CXX_SUFFIX:
         _HELPER.process_cpp(fname, arr[-1])
@@ -167,10 +168,10 @@ def main():
     _HELPER.project_name = sys.argv[1]
     file_type = sys.argv[2]
     allow_type = []
-    if file_type == 'python' or file_type == 'all':
-        allow_type += [x for x in PYTHON_SUFFIX]
-    if file_type == 'cpp' or file_type == 'all':
-        allow_type += [x for x in CXX_SUFFIX]
+    if file_type in ['python', 'all']:
+        allow_type += list(PYTHON_SUFFIX)
+    if file_type in ['cpp', 'all']:
+        allow_type += list(CXX_SUFFIX)
     allow_type = set(allow_type)
     if os.name != 'nt':
         sys.stderr = codecs.StreamReaderWriter(sys.stderr,

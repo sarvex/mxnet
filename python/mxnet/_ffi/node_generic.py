@@ -35,8 +35,9 @@ def _scalar_type_inference(value):
         # We intentionally convert the python int to int32 since it's more common in DL.
         dtype = 'int32'
     else:
-        raise NotImplementedError('Cannot automatically inference the type.'
-                                  ' value={}'.format(value))
+        raise NotImplementedError(
+            f'Cannot automatically inference the type. value={value}'
+        )
     return dtype
 
 
@@ -67,11 +68,13 @@ def convert_to_node(value):
     elif isinstance(value, dict):
         vlist = []
         for item in value.items():
-            if (not isinstance(item[0], (_ObjectBase, NDArrayBase, PyNativeObject)) and
-                    not isinstance(item[0], string_types)):
+            if isinstance(
+                item[0],
+                (_ObjectBase, NDArrayBase, PyNativeObject, string_types),
+            ):
+                vlist.extend((item[0], convert_to_node(item[1])))
+            else:
                 raise ValueError("key of map must already been a container type")
-            vlist.append(item[0])
-            vlist.append(convert_to_node(item[1]))
         return _api_internal._Map(*vlist)
     raise ValueError(f"don't know how to convert type {type(value)} to node")
 

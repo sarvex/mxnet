@@ -66,27 +66,23 @@ def _linux_compile(output, objects, options, compile_cmd="g++"):
     elif output.endswith(".obj"):
         cmd += ["-c"]
     cmd += ["-o", output]
-    if isinstance(objects, str):
-        cmd += [objects]
-    else:
-        cmd += objects
+    cmd += [objects] if isinstance(objects, str) else objects
     if options:
         cmd += options
     proc = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     (out, _) = proc.communicate()
     if proc.returncode != 0:
-        msg = "Compilation error:\n"
-        msg += str(out)
+        msg = "Compilation error:\n" + str(out)
         raise RuntimeError(msg)
 
 
 def get_target(device):
     if device == "cpu":
         return "llvm"
-    elif device == "cuda" or device == "gpu":
+    elif device in ["cuda", "gpu"]:
         return "cuda"
-    assert False, "Unknown device " + device
+    assert False, f"Unknown device {device}"
 
 
 def get_cuda_arch(arch):
@@ -94,21 +90,19 @@ def get_cuda_arch(arch):
         return None
 
     if not isinstance(arch, str):
-        raise TypeError('Expecting parameter arch as a str, while got a {}'.format(str(type(arch))))
+        raise TypeError(
+            f'Expecting parameter arch as a str, while got a {str(type(arch))}'
+        )
 
     if len(arch) == 0:
         return None
 
-    # an example of arch string,
-    # -gencode arch=compute_30,code=sm_30 -gencode arch=compute_35,code=sm_35
-    # -gencode;arch=compute_75,code=[sm_75,compute_75] --fatbin-options -compress-all
-    archs = []
     flags = arch.replace("-gencode;", "-gencode ").split()
-    for flag in flags:
-        if flag.startswith('-gencode') or flag.startswith('arch='):
-            archs.append(flag)
-
-    return archs
+    return [
+        flag
+        for flag in flags
+        if flag.startswith('-gencode') or flag.startswith('arch=')
+    ]
 
 
 if __name__ == "__main__":
@@ -150,18 +144,20 @@ if __name__ == "__main__":
         if cuda_arch is None:
             logging.info('No cuda arch specified. TVM will try to detect it from the build platform.')
         else:
-            logging.info('Cuda arch {} set for compiling TVM operator kernels.'.format(cuda_arch))
+            logging.info(f'Cuda arch {cuda_arch} set for compiling TVM operator kernels.')
             set_cuda_target_arch(cuda_arch)
     func_binary = tvm.build(lowered_funcs, name="tvmop")
     # we create libtvmop.o first, which gives us chance to link tvm_runtime together with the libtvmop
     # to allow mxnet find external helper functions in libtvm_runtime
-    func_binary.save(arguments.target_path + "/libtvmop.o")
+    func_binary.save(f"{arguments.target_path}/libtvmop.o")
     if len(func_binary.imported_modules):
-        func_binary.imported_modules[0].save(arguments.target_path + "/libtvmop.cubin")
+        func_binary.imported_modules[0].save(f"{arguments.target_path}/libtvmop.cubin")
     ld_path = arguments.target_path if arguments.ld_path is None else arguments.ld_path
-    create_shared(arguments.target_path + "/libtvmop.so",
-                  arguments.target_path + "/libtvmop.o",
-                  options=["-L", ld_path, "-ltvm_runtime"])
+    create_shared(
+        f"{arguments.target_path}/libtvmop.so",
+        f"{arguments.target_path}/libtvmop.o",
+        options=["-L", ld_path, "-ltvm_runtime"],
+    )
 
     config_spaces = ConfigSpaces()
     for operator_def in __OP_DEF__:

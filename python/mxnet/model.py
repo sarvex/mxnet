@@ -134,7 +134,7 @@ def _update_params_on_kvstore_nccl(param_arrays, grad_arrays, kvstore, param_nam
     default_batch = '16'
     batch = int(os.getenv('MXNET_UPDATE_AGGREGATION_SIZE', default_batch))
     while start < size:
-        end = start + batch if start + batch < size else size
+        end = min(start + batch, size)
         # push gradient, priority is negative index
         # pull back the weights
         kvstore.pushpull(valid_param_names[start:end], valid_grad_arrays[start:end],
@@ -211,11 +211,12 @@ def save_checkpoint(prefix, epoch, symbol, arg_params, aux_params, remove_amp_ca
     if symbol is not None:
         symbol.save(f'{prefix}-symbol.json', remove_amp_cast=remove_amp_cast)
 
-    save_dict = {(f'arg:{k}') : v.as_in_context(cpu()) for k, v in arg_params.items()}
-    save_dict.update({(f'aux:{k}') : v.as_in_context(cpu()) for k, v in aux_params.items()})
+    save_dict = {
+        (f'arg:{k}'): v.as_in_context(cpu()) for k, v in arg_params.items()
+    } | {(f'aux:{k}'): v.as_in_context(cpu()) for k, v in aux_params.items()}
     param_name = f'{prefix}-{epoch:04}.params'
     nd.save(param_name, save_dict)
-    logging.info('Saved checkpoint to "{}"'.format(param_name))
+    logging.info(f'Saved checkpoint to "{param_name}"')
 
 
 def load_params(prefix, epoch):
@@ -231,7 +232,7 @@ def load_params(prefix, epoch):
         tp, name = k.split(":", 1)
         if tp == "arg":
             arg_params[name] = v
-        if tp == "aux":
+        elif tp == "aux":
             aux_params[name] = v
     return (arg_params, aux_params)
 

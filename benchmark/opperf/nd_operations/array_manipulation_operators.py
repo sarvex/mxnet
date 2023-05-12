@@ -96,9 +96,9 @@ def run_rearrange_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='
     # Fetch all array rearrange operators
     mx_rearrange_ops = get_all_rearrange_operators()
 
-    # Run benchmarks
-    mx_rearrange_op_results = run_op_benchmarks(mx_rearrange_ops, dtype, ctx, profiler, int64_tensor, warmup, runs)
-    return mx_rearrange_op_results
+    return run_op_benchmarks(
+        mx_rearrange_ops, dtype, ctx, profiler, int64_tensor, warmup, runs
+    )
 
 
 def run_shape_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='native', int64_tensor='off', warmup=25, runs=100):
@@ -128,9 +128,9 @@ def run_shape_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='nati
     # Fetch all array shape operators
     mx_shape_ops = get_all_shape_operators()
 
-    # Run benchmarks
-    mx_shape_op_results = run_op_benchmarks(mx_shape_ops, dtype, ctx, profiler, int64_tensor, warmup, runs)
-    return mx_shape_op_results
+    return run_op_benchmarks(
+        mx_shape_ops, dtype, ctx, profiler, int64_tensor, warmup, runs
+    )
 
 
 def run_expanding_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='native', int64_tensor='off', warmup=25, runs=100):
@@ -160,9 +160,9 @@ def run_expanding_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='
     # Fetch all array expanding operators
     mx_expanding_ops = get_all_expanding_operators()
 
-    # Run benchmarks
-    mx_expanding_op_results = run_op_benchmarks(mx_expanding_ops, dtype, ctx, profiler, int64_tensor, warmup, runs)
-    return mx_expanding_op_results
+    return run_op_benchmarks(
+        mx_expanding_ops, dtype, ctx, profiler, int64_tensor, warmup, runs
+    )
 
 
 def run_rounding_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='native', int64_tensor='off', warmup=25, runs=100):
@@ -192,9 +192,9 @@ def run_rounding_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='n
     # Fetch all array rounding operators
     mx_rounding_ops = get_all_rounding_operators()
 
-    # Run benchmarks
-    mx_rounding_op_results = run_op_benchmarks(mx_rounding_ops, dtype, ctx, profiler, int64_tensor, warmup, runs)
-    return mx_rounding_op_results
+    return run_op_benchmarks(
+        mx_rounding_ops, dtype, ctx, profiler, int64_tensor, warmup, runs
+    )
 
 
 def run_join_split_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler='native', int64_tensor='off', warmup=25, runs=100):
@@ -260,5 +260,6 @@ def run_join_split_operators_benchmarks(ctx=mx.cpu(), dtype='float32', profiler=
                                                               ],
                                                       warmup=warmup,
                                                       runs=runs)
-    mx_join_split_op_results = merge_map_list(concat_benchmark_res + split_benchmark_res + stack_benchmark_res)
-    return mx_join_split_op_results
+    return merge_map_list(
+        concat_benchmark_res + split_benchmark_res + stack_benchmark_res
+    )

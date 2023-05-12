@@ -53,13 +53,12 @@ class AttrScope:
         attr : dict of string to string
             Updated attributes to add other scope related attributes.
         """
-        if self._attr:
-            ret = self._attr.copy()
-            if attr:
-                ret.update(attr)
-            return ret
-        else:
+        if not self._attr:
             return attr if attr else {}
+        ret = self._attr.copy()
+        if attr:
+            ret.update(attr)
+        return ret
 
     def __enter__(self):  # pylint: disable=protected-access
         attr = _current.get()._attr.copy()

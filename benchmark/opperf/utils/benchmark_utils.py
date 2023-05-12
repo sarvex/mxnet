@@ -33,7 +33,7 @@ no_backward = {'gather_nd', 'softmax_cross_entropy', 'linalg_gelqf', 'linalg_slo
 def _prepare_op_inputs(inputs, run_backward, dtype, ctx, module):
     mx.random.seed(41)
     kwargs_list = []
-    if module == 'mxnet.numpy_extension' or module == 'mxnet.numpy':
+    if module in ['mxnet.numpy_extension', 'mxnet.numpy']:
         PARAMS_TYPE = PARAMS_OF_TYPE_NP_ARRAY
         get_array_fn = get_mx_np_ndarray
     else:
@@ -41,15 +41,18 @@ def _prepare_op_inputs(inputs, run_backward, dtype, ctx, module):
         get_array_fn = get_mx_ndarray
 
     for inp in inputs:
-        kwargs = {}
-        for key, value in inp.items():
-            if key in PARAMS_TYPE:
-                kwargs[key] = get_array_fn(ctx=ctx, in_tensor=value,
-                                           dtype=dtype,
-                                           initializer=nd.normal,
-                                           attach_grad=run_backward)
-            else:
-                kwargs[key] = value
+        kwargs = {
+            key: get_array_fn(
+                ctx=ctx,
+                in_tensor=value,
+                dtype=dtype,
+                initializer=nd.normal,
+                attach_grad=run_backward,
+            )
+            if key in PARAMS_TYPE
+            else value
+            for key, value in inp.items()
+        }
         kwargs_list.append(kwargs)
     return kwargs_list
 
@@ -77,7 +80,7 @@ def get_mx_np_ndarray(ctx, in_tensor, dtype, initializer, attach_grad=True):
     -------
     MXNet NDArray Tensor.
     """
-    if isinstance(in_tensor, int) or isinstance(in_tensor, float):
+    if isinstance(in_tensor, (int, float)):
         return in_tensor
 
     if isinstance(in_tensor, tuple):
@@ -113,9 +116,17 @@ def adjust_op_name(module, name):
         "Activation":           "activation",
         "Convolution":          "convolution" }
 
-    if (module == mx.nd and (hasattr(mx.np, name) or hasattr(mx.npx, name)) and name in np_to_nd_func.keys()):
+    if (
+        module == mx.nd
+        and (hasattr(mx.np, name) or hasattr(mx.npx, name))
+        and name in np_to_nd_func
+    ):
         return np_to_nd_func[name]
-    elif ((module == mx.np or module == mx.npx) and hasattr(mx.nd, name) and name in nd_to_np_func.keys()):
+    elif (
+        module in [mx.np, mx.npx]
+        and hasattr(mx.nd, name)
+        and name in nd_to_np_func
+    ):
         return nd_to_np_func[name]
     else:
         return name
@@ -159,7 +170,7 @@ def parse_input_ndarray(input_dict):
     Output
     {'inputs': {'weight': '<NDArray 5x5 @cpu(0)>', 'grad': '<NDArray 5x5 @cpu(0)>', 'mean': '<NDArray 5x5 @cpu(0)>', 'var': '<NDArray 5x5 @cpu(0)>', 't': 1, 'wd': 0.1}
     """
-    no_new_line_input_dict=dict()
+    no_new_line_input_dict = {}
     for key,value in input_dict.items():
         if isinstance(value,nd.NDArray):
             # if value in input is NDArray then extract last line only
@@ -268,14 +279,14 @@ def run_benchmark_operator(name, size = (128,128), additional_inputs = {},
             inputs = {}
             for arg in args:
                 if arg in additional_inputs.keys():
-                    inputs.update({arg: additional_inputs[arg]})
+                    inputs[arg] = additional_inputs[arg]
                 elif arg in arg_list[module]:
-                    inputs.update({arg:size})
+                    inputs[arg] = size
             res = run_performance_test(function, run_backward=run_backward, dtype=dtype, ctx=ctx,
                                        inputs=[inputs], warmup=warmup, runs=runs, profiler=profiler)
             responses.append(res)
         else:
-            responses.append(str(module.__name__) + " does not have operator " + name)
+            responses.append(f"{str(module.__name__)} does not have operator {name}")
     for i in range(len(modules)):
         print(modules[i].__name__)
         print(responses[i])
